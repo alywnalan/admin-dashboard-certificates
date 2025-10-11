@@ -23,7 +23,6 @@ pids
 
 # Coverage directory used by tools like istanbul
 coverage/
-*.lcov
 
 # nyc test coverage
 .nyc_output
@@ -33,9 +32,6 @@ jspm_packages/
 
 # Optional npm cache directory
 .npm
-
-# Optional eslint cache
-.eslintcache
 
 # Optional REPL history
 .node_repl_history
@@ -74,8 +70,12 @@ jspm_packages/
 # TernJS port file
 .tern-port
 
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS generated files
 .DS_Store
@@ -86,12 +86,14 @@ jspm_packages/
 ehthumbs.db
 Thumbs.db
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# Uploads directory (keep structure but not files)
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
 
 # Temporary files
 tmp/
@@ -101,16 +103,16 @@ temp/
 dist/
 build/
 
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Certificate files (if any sensitive ones exist)
+# Certificate files (sensitive)
 *.pem
 *.key
 *.crt
+*.p12
 
 # Backup files
 *.bak
 *.backup
+
+# Local configuration
+config/local.js
+config/local.json
