@@ -897,13 +897,18 @@ document.getElementById('generateCertForm').onsubmit = async function(e) {
       <!-- Decorative border -->
       <div style="position:absolute;top:20px;left:20px;right:20px;bottom:20px;border:3px solid #fff;border-radius:15px;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);"></div>
       
+      <!-- UUID Top Left -->
+      <div style="position:absolute;top:40px;left:40px;z-index:10;text-align:left;">
+        <div style="font-size:0.9em;font-weight:600;color:#667eea;">Certificate ID</div>
+        <div style="font-size:1.1em;font-family:monospace;color:#23234a;">${uuid}</div>
+      </div>
+      
+      <!-- QR Code Top Right -->
+      <div id="qrCode" style="position:absolute;top:40px;right:40px;z-index:10;background:white;padding:10px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
+      
       <!-- Header with logo -->
-      <div style="position:absolute;top:40px;left:40px;right:40px;display:flex;justify-content:space-between;align-items:center;">
+      <div style="position:absolute;top:40px;left:160px;right:160px;display:flex;justify-content:center;align-items:center;">
         ${logo ? `<img src="${logo}" alt="Logo" style="height:80px;border-radius:10px;">` : ''}
-        <div style="text-align:right;color:#667eea;">
-          <div style="font-size:0.9em;font-weight:600;">Certificate ID</div>
-          <div style="font-size:1.1em;font-family:monospace;">${uuid}</div>
-        </div>
       </div>
       
       <!-- Main content -->
@@ -942,9 +947,6 @@ document.getElementById('generateCertForm').onsubmit = async function(e) {
         <div style="width:150px;height:2px;background:#667eea;margin:5px auto;"></div>
         <div style="font-size:0.9em;color:#555;font-weight:600;">Director Signature</div>
       </div>
-      
-      <!-- QR Code -->
-      <div id="qrCode" style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);background:white;padding:10px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
       
       <!-- Decorative elements -->
       <div style="position:absolute;top:30%;left:20px;width:40px;height:40px;border:3px solid #667eea;border-radius:50%;opacity:0.3;"></div>
@@ -1317,3 +1319,5 @@ window.downloadIssuedJSON = downloadIssuedJSON;
 window.downloadIssuedPDF = downloadIssuedPDF;
 window.addSubject = addSubject;
 window.removeSubject = removeSubject;
+
+//# sourceMappingURL=admin-dashboard.js.map

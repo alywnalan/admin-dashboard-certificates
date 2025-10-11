@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🎓 Advanced Certificate Management System
 
 A comprehensive, real-time certificate generation and validation platform with blockchain integration, multi-format template support, and advanced analytics.
@@ -240,3 +241,7 @@ For support and questions:
 ---
 
 **Built with ❤️ for modern certificate management**
+=======
+# admin-dashboard-certificates
+Advanced Certificate Management System with Multi-format Templates, Real-time Blockchain, Enhanced Student Profiles, and Modern UI
+>>>>>>> e058f2c2b57172a1c927fd1b830fe3725d07b5d1

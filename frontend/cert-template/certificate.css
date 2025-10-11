@@ -108,12 +108,15 @@ p {
 }
 
 #qrCode {
-  margin-top: 32px;
-  margin-left: 24px;
+  margin-top: 0;
+  margin-bottom: 8px;
+  margin-left: 0;
+  margin-right: 0;
   border: 2px solid #39c2f4;
   border-radius: 12px;
   background: #fff;
   padding: 8px;
+  box-shadow: 0 2px 8px #e0e7ff44;
 }
 /* Details layout */
 .cert-details {
@@ -124,19 +127,82 @@ p {
   gap: 0;
   padding-right: 24px;
 }
+
+/* Make sure .certificate-border is position: relative */
+.certificate-border {
+  position: relative;
+  border: 4px solid #b4c8e7;
+  background: linear-gradient(120deg, #fffbe7 60%, #e0e7ff 100%);
+  width: 96%;
+  height: 88%;
+  margin: auto;
+  padding: 36px 56px 36px 56px;
+  text-align: left;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 36px;
+  box-shadow: 0 4px 24px rgba(60,60,120,0.10);
+  border-radius: 24px;
+  position: relative;
+  z-index: 3;
+}
+
+/* Top-left QR code placement */
 .cert-qr {
-  flex: 1.2;
+  position: absolute;
+  top: 32px;
+  right: 32px;
+  z-index: 10;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  background: linear-gradient(120deg, #e0e7ff 0%, #fffbe7 100%);
-  border: 2px solid #2b70b1;
-  box-shadow: 0 2px 12px #e0e7ff44, 0 0 0 4px #fffbe7 inset;
-  border-radius: 18px;
-  box-shadow: 0 2px 12px #e0e7ff44;
-  padding: 24px 12px;
+  min-width: 90px;
+  min-height: 90px;
+  box-shadow: none;
 }
+
+/* Move UUID to bottom of details */
+#certUUID {
+  margin-top: 24px;
+  padding: 8px 0;
+  border-top: 2px dashed #93e7bc;
+  font-size: 18px;
+  color: #0ea5e9;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.cert-uuid {
+  position: absolute;
+  top: 32px;
+  left: 32px;
+  z-index: 10;
+  background: transparent;
+  color: #60a5fa;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.qr-label {
+  margin-top: 6px;
+  font-size: 13px;
+  color: #3b82f6;
+  font-weight: 600;
+  text-align: center;
+}
+
+.cert-content {
+  padding-top: 90px; /* Prevent overlap with top corners */
+}
+
 @media (max-width: 900px) {
   .certificate {
     width: 98vw;
