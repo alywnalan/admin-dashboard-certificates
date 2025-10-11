@@ -1,7 +1,12 @@
 import Certificate from '../models/Certificate.js';
 import Institute from '../models/Institute.js';
+import Template from '../models/Template.js';
 import { getIO } from '../realtime.js';
 import { anchorHashOnChain, computeContentHashHex } from '../blockchain.js';
+import XLSX from 'xlsx';
+import Handlebars from 'handlebars';
+import path from 'path';
+import fs from 'fs';
 
 // Create a new certificate with enhanced validation
 export const createCertificate = async (req, res) => {
@@ -59,21 +64,73 @@ export const createCertificate = async (req, res) => {
       generatedByAdmin: cert.generatedByAdmin
     });
     
-    // Blockchain anchoring (optional - don't fail if it doesn't work)
+    // Real-time blockchain anchoring with progress updates
+    const blockchainIO = getIO();
+    if (blockchainIO) {
+      blockchainIO.emit('blockchain:anchoring', { 
+        uuid, 
+        student, 
+        status: 'starting',
+        message: 'Starting blockchain anchoring...'
+      });
+    }
+
     try {
       const anchorPayload = JSON.stringify({
         uuid,
         student,
         course,
         institute,
-        date
+        date,
+        metadata: cert.metadata
       });
+      
+      if (blockchainIO) {
+        blockchainIO.emit('blockchain:anchoring', { 
+          uuid, 
+          student, 
+          status: 'processing',
+          message: 'Computing content hash...'
+        });
+      }
+      
       const contentHashHex = computeContentHashHex(anchorPayload);
+      
+      if (blockchainIO) {
+        blockchainIO.emit('blockchain:anchoring', { 
+          uuid, 
+          student, 
+          status: 'processing',
+          message: 'Submitting to blockchain...'
+        });
+      }
+      
       const anchoring = await anchorHashOnChain(contentHashHex);
       cert.blockchain = anchoring;
+      
+      if (blockchainIO) {
+        blockchainIO.emit('blockchain:anchored', { 
+          uuid, 
+          student, 
+          status: 'success',
+          txId: anchoring.txId,
+          message: 'Successfully anchored to blockchain'
+        });
+      }
+      
       console.log('🔗 Blockchain anchoring successful');
     } catch (blockchainError) {
       console.warn('⚠️ Blockchain anchoring failed, continuing without it:', blockchainError.message);
+      
+      if (blockchainIO) {
+        blockchainIO.emit('blockchain:anchoring', { 
+          uuid, 
+          student, 
+          status: 'error',
+          message: `Blockchain anchoring failed: ${blockchainError.message}`
+        });
+      }
+      
       // Set a default blockchain object to indicate it wasn't anchored
       cert.blockchain = {
         txId: null,
@@ -325,46 +382,448 @@ export const validateCertificate = async (req, res) => {
   }
 };
 
-// Bulk certificate operations
+// Enhanced bulk certificate operations with real-time data
 export const bulkValidateCertificates = async (req, res) => {
   try {
-    const { uuids } = req.body;
+    const { uuids, studentDetails, instituteFilter, dateRange } = req.body;
     
-    if (!Array.isArray(uuids) || uuids.length === 0) {
-      return res.status(400).json({ message: 'UUIDs array is required' });
+    console.log('🔍 Enhanced bulk validation started:', {
+      uuidsCount: uuids?.length || 0,
+      studentDetailsCount: studentDetails?.length || 0,
+      instituteFilter,
+      dateRange
+    });
+
+    let query = {};
+    
+    // Apply filters
+    if (instituteFilter) {
+      query.institute = { $regex: instituteFilter, $options: 'i' };
+    }
+    
+    if (dateRange && dateRange.start && dateRange.end) {
+      query.createdAt = {
+        $gte: new Date(dateRange.start),
+        $lte: new Date(dateRange.end)
+      };
     }
 
-    const results = await Promise.all(
-      uuids.map(async (uuid) => {
-        const cert = await Certificate.findOne({ uuid });
-        return {
-          uuid,
-          valid: !!cert,
-          certificate: cert ? {
-            student: cert.student,
-            course: cert.course,
-            institute: cert.institute,
-            date: cert.date
-          } : null
-        };
-      })
-    );
+    // If UUIDs are provided, validate specific certificates
+    if (uuids && Array.isArray(uuids) && uuids.length > 0) {
+      query.uuid = { $in: uuids };
+    }
 
-    const validCount = results.filter(r => r.valid).length;
-    const invalidCount = results.length - validCount;
+    // If student details are provided, match against student data
+    if (studentDetails && Array.isArray(studentDetails) && studentDetails.length > 0) {
+      const studentNames = studentDetails.map(s => s.name || s.studentName).filter(Boolean);
+      if (studentNames.length > 0) {
+        query.student = { $in: studentNames };
+      }
+    }
+
+    console.log('🔍 Query filter:', query);
+
+    // Find certificates with enhanced data
+    const certificates = await Certificate.find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    console.log('🔍 Found certificates:', certificates.length);
+
+    // Enhanced validation results with real-time data
+    const results = certificates.map(cert => {
+      const validationHistory = cert.validationHistory || [];
+      const lastValidation = validationHistory.length > 0 
+        ? validationHistory[validationHistory.length - 1] 
+        : null;
+
+      return {
+        uuid: cert.uuid,
+        valid: true,
+        certificate: {
+          id: cert._id,
+          student: cert.student,
+          course: cert.course,
+          institute: cert.institute,
+          date: cert.date,
+          status: cert.status,
+          issued: cert.issued,
+          generatedByAdmin: cert.generatedByAdmin,
+          createdAt: cert.createdAt,
+          updatedAt: cert.updatedAt,
+          metadata: cert.metadata || {},
+          customizations: cert.customizations || {},
+          validationCount: validationHistory.length,
+          lastValidated: lastValidation?.validatedAt || null,
+          isExpired: cert.isExpired ? cert.isExpired() : false
+        },
+        realTimeData: {
+          validationHistory: validationHistory,
+          qrCode: cert.qrCode,
+          blockchain: cert.blockchain,
+          instituteDetails: cert.institute
+        }
+      };
+    });
+
+    // If UUIDs were provided, also check for missing ones
+    let missingCertificates = [];
+    if (uuids && Array.isArray(uuids)) {
+      const foundUUIDs = results.map(r => r.uuid);
+      missingCertificates = uuids.filter(uuid => !foundUUIDs.includes(uuid));
+    }
+
+    // Add missing certificates to results
+    const missingResults = missingCertificates.map(uuid => ({
+      uuid,
+      valid: false,
+      certificate: null,
+      error: 'Certificate not found in database'
+    }));
+
+    const allResults = [...results, ...missingResults];
+    const validCount = results.length;
+    const invalidCount = missingResults.length;
+    const totalCount = allResults.length;
+
+    // Real-time analytics
+    const analytics = {
+      totalCertificates: totalCount,
+      validCertificates: validCount,
+      invalidCertificates: invalidCount,
+      successRate: totalCount > 0 ? ((validCount / totalCount) * 100).toFixed(2) : 0,
+      byInstitute: {},
+      byStatus: {},
+      byDateRange: {}
+    };
+
+    // Calculate analytics
+    results.forEach(result => {
+      const cert = result.certificate;
+      if (cert) {
+        // By institute
+        const institute = cert.institute;
+        analytics.byInstitute[institute] = (analytics.byInstitute[institute] || 0) + 1;
+        
+        // By status
+        const status = cert.status || 'issued';
+        analytics.byStatus[status] = (analytics.byStatus[status] || 0) + 1;
+        
+        // By date range
+        const date = new Date(cert.createdAt).toISOString().split('T')[0];
+        analytics.byDateRange[date] = (analytics.byDateRange[date] || 0) + 1;
+      }
+    });
+
+    // Emit real-time update
+    const io = getIO();
+    if (io) {
+      io.emit('bulk:validation:completed', {
+        totalProcessed: totalCount,
+        validCount,
+        invalidCount,
+        timestamp: new Date()
+      });
+    }
 
     res.json({
-      results,
+      success: true,
+      results: allResults,
+      analytics,
       summary: {
-        total: results.length,
+        total: totalCount,
         valid: validCount,
         invalid: invalidCount,
-        successRate: ((validCount / results.length) * 100).toFixed(2)
+        successRate: analytics.successRate,
+        processedAt: new Date().toISOString()
+      },
+      filters: {
+        instituteFilter,
+        dateRange,
+        studentDetailsCount: studentDetails?.length || 0
       }
     });
   } catch (err) {
-    console.error('Bulk validation error:', err);
-    res.status(500).json({ message: 'Server error during bulk validation' });
+    console.error('Enhanced bulk validation error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during enhanced bulk validation',
+      error: err.message 
+    });
+  }
+};
+
+// Enhanced database interface for all certificates
+export const getAllCertificatesDatabase = async (req, res) => {
+  try {
+    const { 
+      page = 1, 
+      limit = 50, 
+      search, 
+      institute, 
+      course, 
+      student, 
+      status, 
+      startDate, 
+      endDate,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    console.log('🔍 Database query parameters:', {
+      page, limit, search, institute, course, student, status, startDate, endDate, sortBy, sortOrder
+    });
+
+    // Build query filters
+    let query = {};
+    
+    // Text search across multiple fields
+    if (search) {
+      query.$or = [
+        { student: { $regex: search, $options: 'i' } },
+        { course: { $regex: search, $options: 'i' } },
+        { institute: { $regex: search, $options: 'i' } },
+        { uuid: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    // Specific field filters
+    if (institute) query.institute = { $regex: institute, $options: 'i' };
+    if (course) query.course = { $regex: course, $options: 'i' };
+    if (student) query.student = { $regex: student, $options: 'i' };
+    if (status) query.status = status;
+
+    // Date range filter
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+
+    // Sort configuration
+    const sortConfig = {};
+    sortConfig[sortBy] = sortOrder === 'desc' ? -1 : 1;
+
+    // Calculate pagination
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
+    // Execute queries in parallel
+    const [certificates, totalCount, stats] = await Promise.all([
+      Certificate.find(query)
+        .sort(sortConfig)
+        .skip(skip)
+        .limit(parseInt(limit))
+        .lean(),
+      Certificate.countDocuments(query),
+      Certificate.aggregate([
+        { $match: query },
+        {
+          $group: {
+            _id: null,
+            totalCertificates: { $sum: 1 },
+            totalInstitutes: { $addToSet: '$institute' },
+            totalCourses: { $addToSet: '$course' },
+            totalStudents: { $addToSet: '$student' },
+            avgValidationCount: { $avg: { $size: '$validationHistory' } },
+            byStatus: {
+              $push: {
+                status: '$status',
+                count: 1
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            totalCertificates: 1,
+            uniqueInstitutes: { $size: '$totalInstitutes' },
+            uniqueCourses: { $size: '$totalCourses' },
+            uniqueStudents: { $size: '$totalStudents' },
+            avgValidationCount: { $round: ['$avgValidationCount', 2] },
+            statusBreakdown: {
+              $reduce: {
+                input: '$byStatus',
+                initialValue: {},
+                in: {
+                  $mergeObjects: [
+                    '$$value',
+                    {
+                      $arrayToObject: [
+                        [
+                          {
+                            k: '$$this.status',
+                            v: { $sum: ['$$value.$$this.status', '$$this.count'] }
+                          }
+                        ]
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      ])
+    ]);
+
+    // Enhanced certificate data with real-time information
+    const enhancedCertificates = certificates.map(cert => {
+      const validationHistory = cert.validationHistory || [];
+      const lastValidation = validationHistory.length > 0 
+        ? validationHistory[validationHistory.length - 1] 
+        : null;
+
+      return {
+        id: cert._id,
+        uuid: cert.uuid,
+        student: cert.student,
+        course: cert.course,
+        institute: cert.institute,
+        date: cert.date,
+        status: cert.status || 'issued',
+        issued: cert.issued,
+        generatedByAdmin: cert.generatedByAdmin,
+        createdAt: cert.createdAt,
+        updatedAt: cert.updatedAt,
+        metadata: cert.metadata || {},
+        customizations: cert.customizations || {},
+        validationCount: validationHistory.length,
+        lastValidated: lastValidation?.validatedAt || null,
+        isExpired: cert.isExpired ? cert.isExpired() : false,
+        qrCode: cert.qrCode,
+        blockchain: cert.blockchain,
+        instituteDetails: cert.institute,
+        validationHistory: validationHistory
+      };
+    });
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCount / parseInt(limit));
+    const hasNextPage = parseInt(page) < totalPages;
+    const hasPrevPage = parseInt(page) > 1;
+
+    // Real-time analytics
+    const analytics = stats[0] || {
+      totalCertificates: 0,
+      uniqueInstitutes: 0,
+      uniqueCourses: 0,
+      uniqueStudents: 0,
+      avgValidationCount: 0,
+      statusBreakdown: {}
+    };
+
+    // Emit real-time update
+    const io = getIO();
+    if (io) {
+      io.emit('database:query:completed', {
+        totalResults: totalCount,
+        page: parseInt(page),
+        timestamp: new Date()
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        certificates: enhancedCertificates,
+        pagination: {
+          currentPage: parseInt(page),
+          totalPages,
+          totalCount,
+          limit: parseInt(limit),
+          hasNextPage,
+          hasPrevPage
+        },
+        analytics,
+        filters: {
+          search,
+          institute,
+          course,
+          student,
+          status,
+          startDate,
+          endDate,
+          sortBy,
+          sortOrder
+        },
+        queryTime: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('Database query error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during database query',
+      error: err.message 
+    });
+  }
+};
+
+// Export certificates data
+export const exportCertificatesData = async (req, res) => {
+  try {
+    const { format = 'json', filters = {} } = req.body;
+    
+    console.log('📊 Export request:', { format, filters });
+
+    // Build query from filters
+    let query = {};
+    if (filters.institute) query.institute = { $regex: filters.institute, $options: 'i' };
+    if (filters.course) query.course = { $regex: filters.course, $options: 'i' };
+    if (filters.student) query.student = { $regex: filters.student, $options: 'i' };
+    if (filters.status) query.status = filters.status;
+    if (filters.startDate || filters.endDate) {
+      query.createdAt = {};
+      if (filters.startDate) query.createdAt.$gte = new Date(filters.startDate);
+      if (filters.endDate) query.createdAt.$lte = new Date(filters.endDate);
+    }
+
+    const certificates = await Certificate.find(query)
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (format === 'csv') {
+      // Convert to CSV format
+      const csvData = certificates.map(cert => ({
+        UUID: cert.uuid,
+        Student: cert.student,
+        Course: cert.course,
+        Institute: cert.institute,
+        Date: cert.date,
+        Status: cert.status,
+        'Created At': cert.createdAt,
+        'Validation Count': cert.validationHistory?.length || 0,
+        'Last Validated': cert.validationHistory?.length > 0 
+          ? cert.validationHistory[cert.validationHistory.length - 1].validatedAt 
+          : null
+      }));
+
+      res.setHeader('Content-Type', 'text/csv');
+      res.setHeader('Content-Disposition', 'attachment; filename=certificates.csv');
+      
+      // Simple CSV conversion
+      const headers = Object.keys(csvData[0] || {}).join(',');
+      const rows = csvData.map(row => Object.values(row).join(','));
+      const csv = [headers, ...rows].join('\n');
+      
+      res.send(csv);
+    } else {
+      // JSON format
+      res.json({
+        success: true,
+        format: 'json',
+        count: certificates.length,
+        data: certificates,
+        exportedAt: new Date().toISOString()
+      });
+    }
+  } catch (err) {
+    console.error('Export error:', err);
+    res.status(500).json({ 
+      success: false,
+      message: 'Server error during export',
+      error: err.message 
+    });
   }
 };
 
@@ -490,6 +949,121 @@ export const generateCertificateWithQR = async (req, res) => {
   } catch (err) {
     console.error('Certificate generation error:', err);
     res.status(500).json({ message: 'Server error while generating certificate' });
+  }
+};
+
+// Batch generate certificates from uploaded data (body or file) using a selected template
+export const batchGenerateCertificates = async (req, res) => {
+  try {
+    // Accept either JSON array in body.records or a base64 csv/xlsx in body.file
+    const { records, templateId } = req.body || {};
+
+    if (!templateId) {
+      return res.status(400).json({ message: 'templateId is required' });
+    }
+
+    const template = await Template.findById(templateId);
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+
+    let rows = [];
+    if (Array.isArray(records) && records.length > 0) {
+      rows = records;
+    } else if (req.file) {
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName]);
+    } else {
+      return res.status(400).json({ message: 'No records provided' });
+    }
+
+    const io = getIO();
+    const total = rows.length;
+    let success = 0;
+    let failed = 0;
+    const created = [];
+
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
+      try {
+        const uuid = require('crypto').randomUUID();
+        const cert = new Certificate({
+          uuid,
+          student: row.student || row.name,
+          course: row.course,
+          institute: row.institute,
+          date: row.date,
+          issued: true,
+          generatedByAdmin: true
+        });
+
+        // Optional: anchor
+        try {
+          const anchorPayload = JSON.stringify({
+            uuid,
+            student: cert.student,
+            course: cert.course,
+            institute: cert.institute,
+            date: cert.date
+          });
+          const contentHashHex = computeContentHashHex(anchorPayload);
+          const anchoring = await anchorHashOnChain(contentHashHex);
+          cert.blockchain = anchoring;
+        } catch {}
+
+        await cert.save();
+        success++;
+        created.push({ uuid: cert.uuid, student: cert.student, course: cert.course });
+
+        if (io) {
+          io.emit('batch:progress', {
+            type: 'progress',
+            index,
+            total,
+            success,
+            failed,
+            last: { uuid: cert.uuid, student: cert.student }
+          });
+        }
+      } catch (e) {
+        failed++;
+        if (io) {
+          io.emit('batch:progress', {
+            type: 'error',
+            index,
+            total,
+            success,
+            failed,
+            error: e.message
+          });
+        }
+      }
+    }
+
+    if (getIO()) {
+      getIO().emit('batch:complete', { total, success, failed });
+    }
+
+    return res.json({ success: true, total, successCount: success, failedCount: failed, created });
+  } catch (err) {
+    console.error('Batch generation error:', err);
+    return res.status(500).json({ message: 'Server error while batch generating certificates' });
+  }
+};
+
+// Clear all certificates from the database (admin-only usage recommended)
+export const clearAllCertificates = async (req, res) => {
+  try {
+    const result = await Certificate.deleteMany({});
+    const io = getIO();
+    if (io) {
+      io.emit('certificates:cleared', { timestamp: new Date().toISOString(), deletedCount: result.deletedCount || 0 });
+    }
+    return res.json({ success: true, deletedCount: result.deletedCount || 0 });
+  } catch (err) {
+    console.error('Clear certificates error:', err);
+    return res.status(500).json({ message: 'Server error while clearing certificates' });
   }
 };
 

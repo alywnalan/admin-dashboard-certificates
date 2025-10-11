@@ -290,6 +290,63 @@ const SuperAdmin = {
     }
   },
 
+  // Templates
+  async loadTemplates() {
+    try {
+      const select = document.getElementById('templateSelect');
+      if (!select) return;
+      select.innerHTML = '<option value="">Loading...</option>';
+      const res = await authFetch(`${API_BASE}/templates`);
+      const data = await res.json();
+      const templates = data.templates || [];
+      if (templates.length === 0) {
+        select.innerHTML = '<option value="">No templates yet</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">Select a template</option>' +
+        templates.map(t => `<option value="${t._id}">${t.name}</option>`).join('');
+    } catch (e) {
+      console.error('Failed to load templates', e);
+      const select = document.getElementById('templateSelect');
+      if (select) select.innerHTML = '<option value="">Failed to load templates</option>';
+    }
+  },
+
+  bindTemplateUpload() {
+    const form = document.getElementById('templateUploadForm');
+    const status = document.getElementById('templateUploadStatus');
+    if (!form) return;
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        status.textContent = 'Uploading...';
+        const name = document.getElementById('templateName').value.trim();
+        const description = document.getElementById('templateDescription').value.trim();
+        const fileType = document.getElementById('templateType').value;
+        const file = document.getElementById('templateFile').files[0];
+        if (!name || !file) {
+          status.textContent = 'Name and template file are required';
+          return;
+        }
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+        formData.append('fileType', fileType);
+        formData.append('template', file);
+        const res = await fetch(`${API_BASE}/templates/upload`, { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || 'Upload failed');
+        }
+        status.textContent = 'Uploaded!';
+        form.reset();
+        this.loadTemplates();
+      } catch (err) {
+        status.textContent = `Error: ${err.message}`;
+      }
+    });
+  },
+
   async parseBatchFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -432,6 +489,70 @@ const SuperAdmin = {
     }
     
     return { valid: true };
+  },
+  // Real-time batch progress via Socket.IO
+  initBatchProgressSocket() {
+    if (!window.io) return;
+    if (this._batchSocketInitialized) return;
+    const socket = io(window.location.hostname + ':5000');
+    const wrapper = document.getElementById('batchProgressWrapper');
+    const bar = document.getElementById('batchProgressBar');
+    const counts = document.getElementById('batchProgressCounts');
+    const status = document.getElementById('batchProgressStatus');
+    this._batchSocketInitialized = true;
+    socket.on('batch:progress', (payload) => {
+      if (!wrapper) return;
+      wrapper.style.display = 'block';
+      const total = payload.total || 0;
+      const done = (payload.success || 0) + (payload.failed || 0);
+      const pct = total ? Math.round((done / total) * 100) : 0;
+      if (bar) bar.style.width = pct + '%';
+      if (counts) counts.textContent = `${done} / ${total}`;
+      if (status) {
+        if (payload.type === 'error') {
+          status.textContent = `Error at row ${payload.index + 1}: ${payload.error}`;
+        } else {
+          status.textContent = `Processed row ${payload.index + 1}`;
+        }
+      }
+    });
+    socket.on('batch:complete', (payload) => {
+      if (!wrapper) return;
+      if (bar) bar.style.width = '100%';
+      if (counts) counts.textContent = `${payload.total} / ${payload.total}`;
+      if (status) status.textContent = `Completed. Success: ${payload.success}, Failed: ${payload.failed}`;
+      this.showSuccess(`Batch completed: ${payload.success} success, ${payload.failed} failed`);
+    });
+  },
+
+  async generateBatchCertificates() {
+    if (!this.state.batchData || this.state.batchData.length === 0) {
+      this.showError('Please process batch data first');
+      return;
+    }
+    const templateId = document.getElementById('templateSelect')?.value;
+    if (!templateId) {
+      this.showError('Please select a template');
+      return;
+    }
+    try {
+      this.initBatchProgressSocket();
+      this.showLoading('Starting batch generation...');
+      const res = await authFetch(`${API_BASE}/certificates/batch-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ templateId, records: this.state.batchData })
+      });
+      const data = await res.json();
+      if (!res.ok || data.success !== true) {
+        throw new Error(data.message || 'Batch generation failed');
+      }
+      this.hideLoading();
+      this.showSuccess(`Batch started: ${data.total} records`);
+    } catch (e) {
+      this.hideLoading();
+      this.showError(e.message);
+    }
   },
 
   isValidDate(dateString) {
@@ -665,13 +786,26 @@ const SuperAdmin = {
         </div>
         ${verification.certificate ? `
           <div class="certificate-details">
-            <h5>Certificate Details:</h5>
-            <div class="cert-info">
-              <p><strong>Student:</strong> ${verification.certificate.student}</p>
-              <p><strong>Course:</strong> ${verification.certificate.course}</p>
-              <p><strong>Institute:</strong> ${verification.certificate.institute}</p>
-              <p><strong>Date:</strong> ${verification.certificate.date}</p>
-              <p><strong>UUID:</strong> ${verification.certificate.uuid}</p>
+            <h5>📜 Certificate Information</h5>
+            <div class="detail-item">
+              <span class="label">Student:</span>
+              <span class="value">${verification.certificate.student}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Course:</span>
+              <span class="value">${verification.certificate.course}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Institute:</span>
+              <span class="value">${verification.certificate.institute}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">Date:</span>
+              <span class="value">${verification.certificate.date}</span>
+            </div>
+            <div class="detail-item">
+              <span class="label">UUID:</span>
+              <span class="value">${verification.certificate.uuid}</span>
             </div>
           </div>
         ` : ''}
@@ -958,4 +1092,6 @@ SuperAdmin.runAIScan = function() {
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
   SuperAdmin.init();
+  SuperAdmin.loadTemplates();
+  SuperAdmin.bindTemplateUpload();
 });

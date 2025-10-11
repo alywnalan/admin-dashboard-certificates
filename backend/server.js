@@ -6,6 +6,7 @@ import certificateRoutes from './routes/certificates.js';
 import authRoutes from './routes/auth.js';
 import instituteRoutes from './routes/institute.js';
 import statsRoutes from './routes/stats.js';
+import templateRoutes from './routes/templates.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
@@ -26,6 +27,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/institutes', instituteRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/templates', templateRoutes);
 
 // Static serving for frontend and public assets
 const __filename = fileURLToPath(import.meta.url);

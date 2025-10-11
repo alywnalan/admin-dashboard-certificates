@@ -456,6 +456,142 @@ function downloadCertificate(studentName) {
   alert(`Downloading certificate for ${studentName}`);
 }
 
+async function clearCertificatesStore() {
+  if (!confirm('This will delete all certificates from the database. Continue?')) return;
+  try {
+    const res = await authFetch(`${API_BASE}/certificates/clear`, { method: 'DELETE' });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      alert(`Cleared ${data.deletedCount || 0} certificates.`);
+      loadIssuedCertificates(1);
+    } else {
+      alert(data.message || 'Failed to clear');
+    }
+  } catch (e) {
+    alert('Failed to clear certificates');
+  }
+}
+
+window.clearCertificatesStore = clearCertificatesStore;
+
+async function loadRecentCertificates() {
+  try {
+    const res = await authFetch(`${API_BASE}/certificates/database?limit=5&sortBy=createdAt&sortOrder=desc`);
+    const data = await res.json();
+    const list = document.getElementById('recentGeneratedList');
+    if (!list) return;
+    
+    list.innerHTML = '';
+    (data.certificates || []).forEach(cert => {
+      const item = document.createElement('div');
+      item.style.cssText = 'padding:12px;border:1px solid #ddd;border-radius:8px;background:white;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);';
+      
+      const createdDate = new Date(cert.createdAt).toLocaleString();
+      const blockchainStatus = cert.blockchain?.txId ? 'Anchored' : 'Pending';
+      const statusColor = cert.blockchain?.txId ? '#28a745' : '#ffc107';
+      
+      item.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div style="flex:1;">
+            <div style="font-weight:bold;color:#333;font-size:14px;margin-bottom:4px;">${cert.student}</div>
+            <div style="color:#667eea;font-size:13px;font-weight:600;">${cert.course}</div>
+          </div>
+          <div style="text-align:right;color:#666;font-size:11px;">
+            ${createdDate}
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:#666;margin-bottom:8px;">
+          <div><strong>Institute:</strong> ${cert.institute}</div>
+          <div><strong>ID:</strong> ${cert.uuid}</div>
+        </div>
+        ${cert.metadata?.department ? `<div style="font-size:12px;color:#666;margin-bottom:4px;"><strong>Department:</strong> ${cert.metadata.department}</div>` : ''}
+        ${cert.metadata?.branch ? `<div style="font-size:12px;color:#666;margin-bottom:4px;"><strong>Branch:</strong> ${cert.metadata.branch}</div>` : ''}
+        <div style="margin-top:8px;padding:6px 8px;background:#f8f9fa;border-radius:4px;font-size:11px;color:#555;display:flex;justify-content:space-between;align-items:center;">
+          <span><strong>Status:</strong> Generated successfully</span>
+          <span style="color:${statusColor};font-weight:bold;">🔗 ${blockchainStatus}</span>
+        </div>
+      `;
+      list.appendChild(item);
+    });
+  } catch (e) {
+    console.error('Failed to load recent certificates', e);
+  }
+}
+
+window.loadRecentCertificates = loadRecentCertificates;
+
+function appendRecentGenerated(data) {
+  const list = document.getElementById('recentGeneratedList');
+  if (!list) return;
+  const item = document.createElement('div');
+  item.style.cssText = 'padding:12px;border:1px solid #ddd;border-radius:8px;background:white;margin-bottom:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);';
+  
+  // Format timestamp
+  const timestamp = new Date().toLocaleString();
+  
+  item.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+      <div style="flex:1;">
+        <div style="font-weight:bold;color:#333;font-size:14px;margin-bottom:4px;">${data.student}</div>
+        <div style="color:#667eea;font-size:13px;font-weight:600;">${data.course}</div>
+      </div>
+      <div style="text-align:right;color:#666;font-size:11px;">
+        ${timestamp}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:#666;">
+      <div><strong>Institute:</strong> ${data.institute}</div>
+      <div><strong>ID:</strong> ${data.uuid}</div>
+    </div>
+    <div style="margin-top:8px;padding:6px 8px;background:#f8f9fa;border-radius:4px;font-size:11px;color:#555;">
+      <strong>Status:</strong> Generated successfully
+    </div>
+  `;
+  list.prepend(item);
+  while (list.children.length > 5) list.removeChild(list.lastChild);
+}
+
+function updateBlockchainStatus(data) {
+  const list = document.getElementById('blockchainStatusList');
+  if (!list) return;
+  
+  const existingItem = document.querySelector(`[data-uuid="${data.uuid}"]`);
+  if (existingItem) {
+    existingItem.remove();
+  }
+  
+  const item = document.createElement('div');
+  item.setAttribute('data-uuid', data.uuid);
+  
+  let statusColor = '#666';
+  let statusIcon = '⏳';
+  if (data.status === 'success') {
+    statusColor = '#28a745';
+    statusIcon = '✅';
+  } else if (data.status === 'error') {
+    statusColor = '#dc3545';
+    statusIcon = '❌';
+  } else if (data.status === 'processing') {
+    statusColor = '#ffc107';
+    statusIcon = '🔄';
+  }
+  
+  item.style.cssText = 'padding:8px 12px;border:1px solid #ddd;border-radius:6px;background:white;display:flex;justify-content:space-between;align-items:center;';
+  item.innerHTML = `
+    <div>
+      <span style="font-weight:bold;">${data.student}</span>
+      <span style="color:#666;margin-left:8px;">${data.message}</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="color:${statusColor};">${statusIcon}</span>
+      <span style="color:#666;font-size:12px;">${new Date().toLocaleTimeString()}</span>
+    </div>
+  `;
+  
+  list.prepend(item);
+  while (list.children.length > 5) list.removeChild(list.lastChild);
+}
+
 // Load dashboard stats and chart
 document.addEventListener('DOMContentLoaded', async () => {
   try {
@@ -474,6 +610,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Generate initial report
     await generateReport();
+
+    // Initialize issued list if section is visible
+    const issuedSection = document.getElementById('issuedCertificatesSection');
+    if (issuedSection && !issuedSection.classList.contains('hidden')) {
+      loadIssuedCertificates(1);
+    }
+
+    // Real-time refresh for issued certificates when new ones are created
+    if (window.io) {
+      const socket = window.io(window.API_HOST || undefined);
+      socket.on('certificate:created', (data) => {
+        const section = document.getElementById('issuedCertificatesSection');
+        if (section && !section.classList.contains('hidden')) {
+          loadIssuedCertificates(1);
+        }
+        appendRecentGenerated(data);
+      });
+      socket.on('certificates:cleared', () => {
+        const recent = document.getElementById('recentGeneratedList');
+        if (recent) recent.innerHTML = '';
+        const blockchain = document.getElementById('blockchainStatusList');
+        if (blockchain) blockchain.innerHTML = '';
+      });
+      socket.on('blockchain:anchoring', (data) => {
+        updateBlockchainStatus(data);
+      });
+      socket.on('blockchain:anchored', (data) => {
+        updateBlockchainStatus(data);
+      });
+    }
 
   } catch (e) {
     console.error('Dashboard loading error:', e);
@@ -541,6 +707,33 @@ document.addEventListener('DOMContentLoaded', renderInstitutesTable);
 
 // Student Management
 let students = JSON.parse(localStorage.getItem('students') || '[]');
+let currentSubjects = [];
+
+function addSubject() {
+  const input = document.getElementById('newSubject');
+  const subject = input.value.trim();
+  if (subject && !currentSubjects.includes(subject)) {
+    currentSubjects.push(subject);
+    renderSubjectsList();
+    input.value = '';
+  }
+}
+
+function removeSubject(subject) {
+  currentSubjects = currentSubjects.filter(s => s !== subject);
+  renderSubjectsList();
+}
+
+function renderSubjectsList() {
+  const container = document.getElementById('subjectsList');
+  container.innerHTML = currentSubjects.map(subject => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:#f0f0f0;border-radius:4px;">
+      <span>${subject}</span>
+      <button type="button" onclick="removeSubject('${subject}')" style="background:red;color:white;border:none;border-radius:3px;padding:2px 6px;">×</button>
+    </div>
+  `).join('');
+}
+
 function renderStudentsTable() {
   const tbody = document.querySelector('#studentsTable tbody');
   const search = document.getElementById('searchStudent').value.toLowerCase();
@@ -549,15 +742,20 @@ function renderStudentsTable() {
     .filter(stu =>
       stu.name.toLowerCase().includes(search) ||
       stu.email.toLowerCase().includes(search) ||
-      stu.course.toLowerCase().includes(search) ||
-      stu.institute.toLowerCase().includes(search)
+      (stu.subjects && stu.subjects.some(s => s.toLowerCase().includes(search))) ||
+      stu.institute.toLowerCase().includes(search) ||
+      stu.department.toLowerCase().includes(search) ||
+      stu.branch.toLowerCase().includes(search)
     )
     .forEach((stu, idx) => {
       tbody.innerHTML += `
         <tr>
           <td>${stu.name}</td>
           <td>${stu.email}</td>
-          <td>${stu.course}</td>
+          <td>${stu.department || 'N/A'}</td>
+          <td>${stu.branch || 'N/A'}</td>
+          <td>${stu.year || 'N/A'}</td>
+          <td>${(stu.subjects || []).join(', ')}</td>
           <td>${stu.institute}</td>
           <td>
             <button onclick="editStudent(${idx})">Edit</button>
@@ -572,20 +770,43 @@ document.getElementById('addStudentForm').onsubmit = function(e) {
   e.preventDefault();
   const name = document.getElementById('studentFullName').value.trim();
   const email = document.getElementById('studentEmail').value.trim();
-  const course = document.getElementById('studentCourse').value.trim();
+  const phone = document.getElementById('studentPhone').value.trim();
   const institute = document.getElementById('studentInstitute').value.trim();
-  students.push({ name, email, course, institute });
+  const department = document.getElementById('studentDepartment').value.trim();
+  const branch = document.getElementById('studentBranch').value.trim();
+  const year = document.getElementById('studentYear').value.trim();
+  const semester = document.getElementById('studentSemester').value.trim();
+  
+  students.push({ 
+    name, 
+    email, 
+    phone,
+    institute, 
+    department,
+    branch,
+    year,
+    semester,
+    subjects: [...currentSubjects]
+  });
   localStorage.setItem('students', JSON.stringify(students));
   renderStudentsTable();
   this.reset();
+  currentSubjects = [];
+  renderSubjectsList();
   populateGenerateCertificateDropdowns();
 };
 window.editStudent = function(idx) {
   const stu = students[idx];
   document.getElementById('studentFullName').value = stu.name;
   document.getElementById('studentEmail').value = stu.email;
-  document.getElementById('studentCourse').value = stu.course;
+  document.getElementById('studentPhone').value = stu.phone || '';
   document.getElementById('studentInstitute').value = stu.institute;
+  document.getElementById('studentDepartment').value = stu.department || '';
+  document.getElementById('studentBranch').value = stu.branch || '';
+  document.getElementById('studentYear').value = stu.year || '';
+  document.getElementById('studentSemester').value = stu.semester || '';
+  currentSubjects = [...(stu.subjects || [])];
+  renderSubjectsList();
   students.splice(idx, 1);
   renderStudentsTable();
   populateGenerateCertificateDropdowns();
@@ -670,32 +891,65 @@ document.getElementById('generateCertForm').onsubmit = async function(e) {
   const sign1 = await toBase64(sign1File);
   const sign2 = await toBase64(sign2File);
 
-  // Certificate preview HTML
+  // Modern Certificate preview HTML
   const certHTML = `
-    <div id="certTheme" style="width:900px;height:600px;background:${bgColor};border:12px solid #ffd700;border-radius:32px;box-shadow:0 8px 32px #23234a22;position:relative;overflow:hidden;padding:0;margin:auto;font-family:'Georgia',serif;">
-      ${logo ? `<img src="${logo}" alt="Logo" style="position:absolute;top:32px;left:32px;height:64px;">` : ''}
-      <div style="text-align:center;padding-top:60px;">
-        <h1 style="font-size:2.8em;color:#23234a;font-weight:800;letter-spacing:2px;margin-bottom:12px;">Certificate of Achievement</h1>
-        <div style="font-size:1.3em;color:#23234a;margin-bottom:18px;">This is to certify that</div>
-        <div style="font-size:2.1em;color:#10b981;font-weight:700;margin-bottom:10px;">${stu ? stu.name : ''}</div>
-        <div style="font-size:1.2em;color:#23234a;">has successfully completed <b>${stu ? stu.course : ''}</b></div>
-        <div style="font-size:1.1em;color:#23234a;margin-top:10px;">Issued by: <b>${inst ? inst.name : ''}</b></div>
-        <div style="font-size:1em;color:#23234a;margin-top:10px;">Date: <b>${date}</b></div>
-        <div style="font-size:1em;color:#23234a;margin-top:10px;">Certificate ID: <b>${uuid}</b></div>
+    <div id="certTheme" style="width:1000px;height:700px;background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);position:relative;overflow:hidden;padding:0;margin:auto;font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+      <!-- Decorative border -->
+      <div style="position:absolute;top:20px;left:20px;right:20px;bottom:20px;border:3px solid #fff;border-radius:15px;background:rgba(255,255,255,0.95);backdrop-filter:blur(10px);"></div>
+      
+      <!-- Header with logo -->
+      <div style="position:absolute;top:40px;left:40px;right:40px;display:flex;justify-content:space-between;align-items:center;">
+        ${logo ? `<img src="${logo}" alt="Logo" style="height:80px;border-radius:10px;">` : ''}
+        <div style="text-align:right;color:#667eea;">
+          <div style="font-size:0.9em;font-weight:600;">Certificate ID</div>
+          <div style="font-size:1.1em;font-family:monospace;">${uuid}</div>
+        </div>
       </div>
-      <div style="position:absolute;bottom:32px;left:32px;text-align:center;">
-        ${sign1 ? `<img src="${sign1}" alt="Signature 1" style="height:48px;"><br>` : ''}
-        <span style="font-size:1em;color:#23234a;">Signature 1</span>
+      
+      <!-- Main content -->
+      <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;width:80%;">
+        <div style="font-size:3.5em;color:#667eea;font-weight:800;letter-spacing:3px;margin-bottom:20px;text-shadow:2px 2px 4px rgba(0,0,0,0.1);">CERTIFICATE</div>
+        <div style="font-size:1.8em;color:#333;font-weight:600;margin-bottom:30px;">OF COMPLETION</div>
+        
+        <div style="font-size:1.4em;color:#555;margin-bottom:25px;line-height:1.6;">This is to certify that</div>
+        
+        <div style="font-size:2.8em;color:#667eea;font-weight:700;margin-bottom:20px;text-shadow:1px 1px 2px rgba(0,0,0,0.1);">${stu ? stu.name : ''}</div>
+        
+        <div style="font-size:1.3em;color:#555;margin-bottom:15px;">has successfully completed the program</div>
+        <div style="font-size:1.6em;color:#333;font-weight:600;margin-bottom:20px;padding:10px 20px;background:linear-gradient(45deg, #667eea, #764ba2);color:white;border-radius:25px;display:inline-block;">${stu ? stu.course : ''}</div>
+        
+        <!-- Student Details Section -->
+        <div style="background:rgba(102, 126, 234, 0.1);border-radius:15px;padding:20px;margin:20px 0;border:2px solid rgba(102, 126, 234, 0.2);">
+          ${stu && stu.department ? `<div style="font-size:1.1em;color:#555;margin-bottom:8px;"><strong style="color:#667eea;">Department:</strong> ${stu.department}</div>` : ''}
+          ${stu && stu.branch ? `<div style="font-size:1.1em;color:#555;margin-bottom:8px;"><strong style="color:#667eea;">Branch:</strong> ${stu.branch}</div>` : ''}
+          ${stu && stu.year ? `<div style="font-size:1.1em;color:#555;margin-bottom:8px;"><strong style="color:#667eea;">Academic Year:</strong> ${stu.year}</div>` : ''}
+          ${stu && stu.semester ? `<div style="font-size:1.1em;color:#555;margin-bottom:8px;"><strong style="color:#667eea;">Semester:</strong> ${stu.semester}</div>` : ''}
+        </div>
+        
+        <div style="font-size:1.2em;color:#555;margin-bottom:10px;">Issued by: <strong style="color:#667eea;">${inst ? inst.name : ''}</strong></div>
+        <div style="font-size:1.1em;color:#555;margin-bottom:10px;">Date of Issue: <strong style="color:#667eea;">${date}</strong></div>
       </div>
-      <div style="position:absolute;bottom:32px;right:32px;text-align:center;">
-        ${sign2 ? `<img src="${sign2}" alt="Signature 2" style="height:48px;"><br>` : ''}
-        <span style="font-size:1em;color:#23234a;">Signature 2</span>
+      
+      <!-- Signatures -->
+      <div style="position:absolute;bottom:60px;left:60px;text-align:center;">
+        ${sign1 ? `<img src="${sign1}" alt="Signature 1" style="height:60px;margin-bottom:5px;"><br>` : ''}
+        <div style="width:150px;height:2px;background:#667eea;margin:5px auto;"></div>
+        <div style="font-size:0.9em;color:#555;font-weight:600;">Authorized Signature</div>
       </div>
-      <div style="position:absolute;bottom:32px;left:50%;transform:translateX(-50%);">
-        <span style="font-size:1.2em;color:#ffd700;font-weight:700;">Seal</span>
+      
+      <div style="position:absolute;bottom:60px;right:60px;text-align:center;">
+        ${sign2 ? `<img src="${sign2}" alt="Signature 2" style="height:60px;margin-bottom:5px;"><br>` : ''}
+        <div style="width:150px;height:2px;background:#667eea;margin:5px auto;"></div>
+        <div style="font-size:0.9em;color:#555;font-weight:600;">Director Signature</div>
       </div>
-      <div style="position:absolute;top:16px;right:32px;opacity:0.15;font-size:4em;font-weight:900;color:#ffd700;pointer-events:none;">ACADEMIC</div>
-      <div id="qrCode" style="position:absolute;bottom:32px;right:50%;transform:translateX(50%);"></div>
+      
+      <!-- QR Code -->
+      <div id="qrCode" style="position:absolute;bottom:40px;left:50%;transform:translateX(-50%);background:white;padding:10px;border-radius:10px;box-shadow:0 4px 8px rgba(0,0,0,0.1);"></div>
+      
+      <!-- Decorative elements -->
+      <div style="position:absolute;top:30%;left:20px;width:40px;height:40px;border:3px solid #667eea;border-radius:50%;opacity:0.3;"></div>
+      <div style="position:absolute;top:60%;right:20px;width:30px;height:30px;border:3px solid #764ba2;border-radius:50%;opacity:0.3;"></div>
+      <div style="position:absolute;bottom:30%;left:30px;width:25px;height:25px;border:3px solid #667eea;border-radius:50%;opacity:0.3;"></div>
     </div>
   `;
 
@@ -882,3 +1136,184 @@ function validateHistory() {
     </div>
   `;
 }
+
+// ================= Issued Certificates (List with filters, pagination) =================
+async function loadIssuedCertificates(page = 1) {
+  try {
+    const wrapper = document.getElementById('issuedTableWrapper');
+    const empty = document.getElementById('issuedEmpty');
+    const content = document.getElementById('issuedTableContent');
+    const pagination = document.getElementById('issuedPagination');
+    if (!content) return;
+
+    const params = new URLSearchParams();
+    params.set('page', String(page));
+    params.set('limit', '10');
+
+    const search = document.getElementById('issuedSearch')?.value.trim();
+    const startDate = document.getElementById('issuedStartDate')?.value;
+    const endDate = document.getElementById('issuedEndDate')?.value;
+    const sortBy = document.getElementById('issuedSortBy')?.value || 'createdAt';
+    const sortOrder = document.getElementById('issuedSortOrder')?.value || 'desc';
+
+    if (search) params.set('search', search);
+    if (startDate) params.set('startDate', startDate);
+    if (endDate) params.set('endDate', endDate);
+    if (sortBy) params.set('sortBy', sortBy);
+    if (sortOrder) params.set('sortOrder', sortOrder);
+
+    const res = await authFetch(`${API_BASE}/certificates/database?${params.toString()}`);
+    const data = await res.json();
+
+    const rows = (data.certificates || []).map((c) => {
+      return `
+        <tr>
+          <td>${new Date(c.createdAt).toLocaleString()}</td>
+          <td>${c.student}</td>
+          <td>${c.course}</td>
+          <td>${c.institute}</td>
+          <td><span class="status-${(c.status||'issued').toLowerCase()}">${c.status || 'issued'}</span></td>
+          <td>
+            <button class="btn-small" onclick="downloadIssuedJSON('${c.uuid}')">JSON</button>
+            <button class="btn-small" onclick="downloadIssuedPDF('${c.uuid}')">PDF</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    const tableHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Student</th>
+            <th>Course</th>
+            <th>Institute</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows}
+        </tbody>
+      </table>
+    `;
+
+    content.innerHTML = tableHtml;
+    if (data.total > 0) {
+      if (wrapper) wrapper.style.display = '';
+      if (empty) empty.style.display = 'none';
+    } else {
+      if (wrapper) wrapper.style.display = 'none';
+      if (empty) empty.style.display = '';
+    }
+
+    renderIssuedPagination(data.page || 1, data.totalPages || 1);
+  } catch (e) {
+    console.error('Failed to load issued certificates', e);
+  }
+}
+
+function renderIssuedPagination(currentPage, totalPages) {
+  const pagination = document.getElementById('issuedPagination');
+  if (!pagination) return;
+  let html = '';
+  if (totalPages <= 1) {
+    pagination.innerHTML = '';
+    return;
+  }
+  const prev = Math.max(1, currentPage - 1);
+  const next = Math.min(totalPages, currentPage + 1);
+  html += `<button class="btn-small" ${currentPage===1?'disabled':''} onclick="loadIssuedCertificates(${prev})">Prev</button>`;
+  html += `<span style="margin:0 8px;">Page ${currentPage} / ${totalPages}</span>`;
+  html += `<button class="btn-small" ${currentPage===totalPages?'disabled':''} onclick="loadIssuedCertificates(${next})">Next</button>`;
+  pagination.innerHTML = html;
+}
+
+async function downloadIssuedJSON(uuid) {
+  try {
+    const res = await authFetch(`${API_BASE}/certificates?uuid=${encodeURIComponent(uuid)}`);
+    const data = await res.json();
+    const cert = (data.certificates || []).find(c => c.uuid === uuid) || data.certificate || null;
+    if (!cert) return alert('Certificate not found');
+    const blob = new Blob([JSON.stringify(cert, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `certificate_${uuid}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Failed to download JSON');
+  }
+}
+
+async function downloadIssuedPDF(uuid) {
+  try {
+    const res = await authFetch(`${API_BASE}/certificates?uuid=${encodeURIComponent(uuid)}`);
+    const data = await res.json();
+    const cert = (data.certificates || []).find(c => c.uuid === uuid) || data.certificate || null;
+    if (!cert) return alert('Certificate not found');
+    if (!window.jspdf) return alert('PDF library not loaded');
+    const doc = new window.jspdf.jsPDF();
+    doc.setFontSize(14);
+    doc.text('Certificate', 14, 20);
+    doc.setFontSize(11);
+    doc.text(`UUID: ${cert.uuid}`, 14, 32);
+    doc.text(`Student: ${cert.student}`, 14, 40);
+    doc.text(`Course: ${cert.course}`, 14, 48);
+    doc.text(`Institute: ${cert.institute}`, 14, 56);
+    doc.text(`Date: ${cert.date}`, 14, 64);
+    doc.text(`Status: ${cert.status || 'issued'}`, 14, 72);
+    doc.save(`certificate_${uuid}.pdf`);
+  } catch (e) {
+    alert('Failed to generate PDF');
+  }
+}
+
+async function exportIssuedCSV() {
+  try {
+    const params = {};
+    const search = document.getElementById('issuedSearch')?.value.trim();
+    const startDate = document.getElementById('issuedStartDate')?.value;
+    const endDate = document.getElementById('issuedEndDate')?.value;
+    const sortBy = document.getElementById('issuedSortBy')?.value || 'createdAt';
+    const sortOrder = document.getElementById('issuedSortOrder')?.value || 'desc';
+    if (search) params.search = search;
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+    if (sortBy) params.sortBy = sortBy;
+    if (sortOrder) params.sortOrder = sortOrder;
+
+    const res = await authFetch(`${API_BASE}/certificates/export`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ format: 'csv', filters: params })
+    });
+    const text = await res.text();
+    const blob = new Blob([text], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'issued_certificates.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('Failed to export CSV');
+  }
+}
+
+// Bind issued filters
+document.getElementById('issuedSearch')?.addEventListener('input', () => loadIssuedCertificates(1));
+document.getElementById('issuedStartDate')?.addEventListener('change', () => loadIssuedCertificates(1));
+document.getElementById('issuedEndDate')?.addEventListener('change', () => loadIssuedCertificates(1));
+document.getElementById('issuedSortBy')?.addEventListener('change', () => loadIssuedCertificates(1));
+document.getElementById('issuedSortOrder')?.addEventListener('change', () => loadIssuedCertificates(1));
+
+// Expose functions globally
+window.loadIssuedCertificates = loadIssuedCertificates;
+window.exportIssuedCSV = exportIssuedCSV;
+window.downloadIssuedJSON = downloadIssuedJSON;
+window.downloadIssuedPDF = downloadIssuedPDF;
+window.addSubject = addSubject;
+window.removeSubject = removeSubject;

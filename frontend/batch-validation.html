@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enhanced Batch Validation & Database Interface</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="icon" href="assets/logo.png">
+  <style>
+    .batch-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f8f9fa;
+      min-height: 100vh;
+    }
+    
+    .batch-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 30px;
+      border-radius: 15px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .batch-tabs {
+      display: flex;
+      background: white;
+      border-radius: 10px;
+      padding: 5px;
+      margin-bottom: 30px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 15px 20px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .tab-button.active {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .tab-content {
+      display: none;
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .form-group input, .form-group select, .form-group textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e1e5e9;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s ease;
+    }
+    
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+      outline: none;
+    }
+    
+    .student-details-input {
+      background: #f8f9fa;
+      border: 2px dashed #dee2e6;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    
+    .student-row {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+      align-items: end;
+    }
+    
+    .student-row input {
+      flex: 1;
+    }
+    
+    .add-student-btn, .remove-student-btn {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .add-student-btn {
+      background: #28a745;
+      color: white;
+    }
+    
+    .add-student-btn:hover {
+      background: #218838;
+      transform: translateY(-2px);
+    }
+    
+    .remove-student-btn {
+      background: #dc3545;
+      color: white;
+    }
+    
+    .remove-student-btn:hover {
+      background: #c82333;
+      transform: translateY(-2px);
+    }
+    
+    .validation-results {
+      margin-top: 30px;
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+    }
+    
+    .result-item {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 10px;
+      border-left: 4px solid #28a745;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .result-item.invalid {
+      border-left-color: #dc3545;
+    }
+    
+    .result-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .stat-card {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-number {
+      font-size: 2em;
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    .stat-label {
+      color: #666;
+      margin-top: 5px;
+    }
+    
+    .database-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+    
+    .database-table {
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    
+    .table-header {
+      background: #667eea;
+      color: white;
+      padding: 15px 20px;
+      font-weight: 600;
+    }
+    
+    .table-content {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .table-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+      padding: 15px 20px;
+      border-bottom: 1px solid #e1e5e9;
+      align-items: center;
+    }
+    
+    .table-row:hover {
+      background: #f8f9fa;
+    }
+    
+    .table-header-row {
+      background: #f8f9fa;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    
+    .status-issued {
+      background: #d4edda;
+      color: #155724;
+    }
+    
+    .status-pending {
+      background: #fff3cd;
+      color: #856404;
+    }
+    
+    .status-expired {
+      background: #f8d7da;
+      color: #721c24;
+    }
+    
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    .pagination button {
+      padding: 8px 12px;
+      border: 1px solid #dee2e6;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .pagination button:hover:not(:disabled) {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .export-buttons {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .export-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .export-json {
+      background: #17a2b8;
+      color: white;
+    }
+    
+    .export-csv {
+      background: #28a745;
+      color: white;
+    }
+    
+    .export-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+    
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="batch-container">
+    <div class="batch-header">
+      <h1>🔍 Enhanced Batch Validation & Database Interface</h1>
+      <p>Real-time certificate validation with comprehensive database access</p>
+    </div>
+
+    <div class="batch-tabs">
+      <button class="tab-button active" onclick="switchTab('validation')">Batch Validation</button>
+      <button class="tab-button" onclick="switchTab('database')">Database Interface</button>
+      <button class="tab-button" onclick="switchTab('analytics')">Analytics</button>
+    </div>
+
+    <!-- Batch Validation Tab -->
+    <div id="validation" class="tab-content active">
+      <h2>📋 Enhanced Batch Validation</h2>
+      
+      <div class="form-group">
+        <label>Validation Method</label>
+        <select id="validationMethod" onchange="toggleValidationMethod()">
+          <option value="uuids">Validate by UUIDs</option>
+          <option value="students">Validate by Student Details</option>
+          <option value="filters">Validate by Filters</option>
+        </select>
+      </div>
+
+      <!-- UUID Validation -->
+      <div id="uuidValidation" class="validation-method">
+        <div class="form-group">
+          <label>Certificate UUIDs (one per line)</label>
+          <textarea id="certificateUuids" rows="6" placeholder="Enter UUIDs, one per line..."></textarea>
+        </div>
+      </div>
+
+      <!-- Student Details Validation -->
+      <div id="studentValidation" class="validation-method" style="display: none;">
+        <div class="student-details-input">
+          <h3>Student Details</h3>
+          <div id="studentDetailsContainer">
+            <div class="student-row">
+              <input type="text" placeholder="Student Name" class="student-name">
+              <input type="text" placeholder="Course" class="student-course">
+              <input type="text" placeholder="Institute" class="student-institute">
+              <button type="button" class="remove-student-btn" onclick="removeStudentRow(this)">Remove</button>
+            </div>
+          </div>
+          <button type="button" class="add-student-btn" onclick="addStudentRow()">+ Add Student</button>
+        </div>
+      </div>
+
+      <!-- Filter Validation -->
+      <div id="filterValidation" class="validation-method" style="display: none;">
+        <div class="database-filters">
+          <div class="form-group">
+            <label>Institute Filter</label>
+            <input type="text" id="instituteFilter" placeholder="Filter by institute name...">
+          </div>
+          <div class="form-group">
+            <label>Date Range Start</label>
+            <input type="date" id="dateStart">
+          </div>
+          <div class="form-group">
+            <label>Date Range End</label>
+            <input type="date" id="dateEnd">
+          </div>
+        </div>
+      </div>
+
+      <button onclick="performBatchValidation()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+        🔍 Start Batch Validation
+      </button>
+
+      <div id="validationResults" class="validation-results" style="display: none;">
+        <h3>Validation Results</h3>
+        <div id="validationStats" class="result-stats"></div>
+        <div id="validationResultsList"></div>
+      </div>
+    </div>
+
+    <!-- Database Interface Tab -->
+    <div id="database" class="tab-content">
+      <h2>🗄️ Certificate Database Interface</h2>
+      
+      <div class="export-buttons">
+        <button class="export-btn export-json" onclick="exportData('json')">📄 Export JSON</button>
+        <button class="export-btn export-csv" onclick="exportData('csv')">📊 Export CSV</button>
+      </div>
+
+      <div class="database-filters">
+        <div class="form-group">
+          <label>Search</label>
+          <input type="text" id="searchQuery" placeholder="Search certificates...">
+        </div>
+        <div class="form-group">
+          <label>Institute</label>
+          <input type="text" id="dbInstituteFilter" placeholder="Filter by institute...">
+        </div>
+        <div class="form-group">
+          <label>Course</label>
+          <input type="text" id="dbCourseFilter" placeholder="Filter by course...">
+        </div>
+        <div class="form-group">
+          <label>Student</label>
+          <input type="text" id="dbStudentFilter" placeholder="Filter by student...">
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select id="dbStatusFilter">
+            <option value="">All Statuses</option>
+            <option value="issued">Issued</option>
+            <option value="pending">Pending</option>
+            <option value="expired">Expired</option>
+            <option value="revoked">Revoked</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Start Date</label>
+          <input type="date" id="dbStartDate">
+        </div>
+        <div class="form-group">
+          <label>End Date</label>
+          <input type="date" id="dbEndDate">
+        </div>
+        <div class="form-group">
+          <label>Sort By</label>
+          <select id="dbSortBy">
+            <option value="createdAt">Created Date</option>
+            <option value="student">Student Name</option>
+            <option value="course">Course</option>
+            <option value="institute">Institute</option>
+            <option value="status">Status</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Sort Order</label>
+          <select id="dbSortOrder">
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+        </div>
+      </div>
+
+      <button onclick="loadDatabaseData()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+        🔍 Load Database Data
+      </button>
+
+      <div id="databaseResults" class="database-table" style="display: none;">
+        <div class="table-header">
+          <h3>Certificate Database</h3>
+        </div>
+        <div id="databaseTableContent" class="table-content"></div>
+        <div id="databasePagination" class="pagination"></div>
+      </div>
+    </div>
+
+    <!-- Analytics Tab -->
+    <div id="analytics" class="tab-content">
+      <h2>📊 Real-time Analytics</h2>
+      <div id="analyticsContent">
+        <div class="loading">Loading analytics...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentPage = 1;
+    let totalPages = 1;
+    let currentFilters = {};
+
+    // Tab switching
+    function switchTab(tabName) {
+      // Hide all tabs
+      document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.remove('active');
+      });
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+
+      // Show selected tab
+      document.getElementById(tabName).classList.add('active');
+      event.target.classList.add('active');
+
+      // Load data for specific tabs
+      if (tabName === 'analytics') {
+        loadAnalytics();
+      }
+    }
+
+    // Toggle validation method
+    function toggleValidationMethod() {
+      const method = document.getElementById('validationMethod').value;
+      document.querySelectorAll('.validation-method').forEach(el => {
+        el.style.display = 'none';
+      });
+      document.getElementById(method + 'Validation').style.display = 'block';
+    }
+
+    // Student details management
+    function addStudentRow() {
+      const container = document.getElementById('studentDetailsContainer');
+      const row = document.createElement('div');
+      row.className = 'student-row';
+      row.innerHTML = `
+        <input type="text" placeholder="Student Name" class="student-name">
+        <input type="text" placeholder="Course" class="student-course">
+        <input type="text" placeholder="Institute" class="student-institute">
+        <button type="button" class="remove-student-btn" onclick="removeStudentRow(this)">Remove</button>
+      `;
+      container.appendChild(row);
+    }
+
+    function removeStudentRow(button) {
+      button.parentElement.remove();
+    }
+
+    // Batch validation
+    async function performBatchValidation() {
+      const method = document.getElementById('validationMethod').value;
+      let requestData = {};
+
+      if (method === 'uuids') {
+        const uuids = document.getElementById('certificateUuids').value
+          .split('\n')
+          .map(uuid => uuid.trim())
+          .filter(uuid => uuid);
+        requestData.uuids = uuids;
+      } else if (method === 'students') {
+        const studentRows = document.querySelectorAll('.student-row');
+        const studentDetails = Array.from(studentRows).map(row => ({
+          name: row.querySelector('.student-name').value,
+          course: row.querySelector('.student-course').value,
+          institute: row.querySelector('.student-institute').value
+        })).filter(student => student.name);
+        requestData.studentDetails = studentDetails;
+      } else if (method === 'filters') {
+        requestData.instituteFilter = document.getElementById('instituteFilter').value;
+        requestData.dateRange = {
+          start: document.getElementById('dateStart').value,
+          end: document.getElementById('dateEnd').value
+        };
+      }
+
+      try {
+        showLoading('validationResults');
+        const response = await fetch('/api/certificates/bulk-validate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestData)
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseText = await response.text();
+        console.log('Raw response:', responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          console.error('Response text:', responseText);
+          throw new Error('Invalid JSON response from server. Check server logs.');
+        }
+
+        if (data.success === false) {
+          throw new Error(data.message || 'Server returned error');
+        }
+
+        displayValidationResults(data);
+      } catch (error) {
+        console.error('Validation error:', error);
+        showError('validationResults', 'Error performing batch validation: ' + error.message);
+      }
+    }
+
+    function displayValidationResults(data) {
+      const resultsDiv = document.getElementById('validationResults');
+      const statsDiv = document.getElementById('validationStats');
+      const resultsListDiv = document.getElementById('validationResultsList');
+
+      // Display statistics
+      statsDiv.innerHTML = `
+        <div class="stat-card">
+          <div class="stat-number">${data.summary.total}</div>
+          <div class="stat-label">Total Processed</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${data.summary.valid}</div>
+          <div class="stat-label">Valid Certificates</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${data.summary.invalid}</div>
+          <div class="stat-label">Invalid Certificates</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-number">${data.summary.successRate}%</div>
+          <div class="stat-label">Success Rate</div>
+        </div>
+      `;
+
+      // Display results
+      resultsListDiv.innerHTML = data.results.map(result => `
+        <div class="result-item ${result.valid ? '' : 'invalid'}">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>UUID:</strong> ${result.uuid}<br>
+              ${result.certificate ? `
+                <strong>Student:</strong> ${result.certificate.student}<br>
+                <strong>Course:</strong> ${result.certificate.course}<br>
+                <strong>Institute:</strong> ${result.certificate.institute}<br>
+                <strong>Status:</strong> ${result.certificate.status}<br>
+                <strong>Validations:</strong> ${result.certificate.validationCount}
+              ` : `<strong>Error:</strong> ${result.error}`}
+            </div>
+            <div style="text-align: right;">
+              <span class="status-badge ${result.valid ? 'status-issued' : 'status-expired'}">
+                ${result.valid ? 'VALID' : 'INVALID'}
+              </span>
+            </div>
+          </div>
+        </div>
+      `).join('');
+
+      resultsDiv.style.display = 'block';
+    }
+
+    // Database interface
+    async function loadDatabaseData(page = 1) {
+      const filters = {
+        page,
+        limit: 20,
+        search: document.getElementById('searchQuery').value,
+        institute: document.getElementById('dbInstituteFilter').value,
+        course: document.getElementById('dbCourseFilter').value,
+        student: document.getElementById('dbStudentFilter').value,
+        status: document.getElementById('dbStatusFilter').value,
+        startDate: document.getElementById('dbStartDate').value,
+        endDate: document.getElementById('dbEndDate').value,
+        sortBy: document.getElementById('dbSortBy').value,
+        sortOrder: document.getElementById('dbSortOrder').value
+      };
+
+      try {
+        showLoading('databaseResults');
+        const queryParams = new URLSearchParams(filters);
+        const response = await fetch(`/api/certificates/database?${queryParams}`);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const responseText = await response.text();
+        console.log('Database response:', responseText);
+        
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('JSON parse error:', parseError);
+          console.error('Response text:', responseText);
+          throw new Error('Invalid JSON response from server. Check server logs.');
+        }
+
+        if (data.success) {
+          displayDatabaseResults(data.data);
+          currentPage = data.data.pagination.currentPage;
+          totalPages = data.data.pagination.totalPages;
+        } else {
+          showError('databaseResults', 'Error loading database: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Database error:', error);
+        showError('databaseResults', 'Error loading database: ' + error.message);
+      }
+    }
+
+    function displayDatabaseResults(data) {
+      const resultsDiv = document.getElementById('databaseResults');
+      const tableContent = document.getElementById('databaseTableContent');
+      const paginationDiv = document.getElementById('databasePagination');
+
+      // Display table
+      tableContent.innerHTML = `
+        <div class="table-row table-header-row">
+          <div>UUID</div>
+          <div>Student</div>
+          <div>Course</div>
+          <div>Institute</div>
+          <div>Status</div>
+          <div>Created</div>
+        </div>
+        ${data.certificates.map(cert => `
+          <div class="table-row">
+            <div>${cert.uuid}</div>
+            <div>${cert.student}</div>
+            <div>${cert.course}</div>
+            <div>${cert.institute}</div>
+            <div>
+              <span class="status-badge status-${cert.status}">${cert.status.toUpperCase()}</span>
+            </div>
+            <div>${new Date(cert.createdAt).toLocaleDateString()}</div>
+          </div>
+        `).join('')}
+      `;
+
+      // Display pagination
+      paginationDiv.innerHTML = `
+        <button ${currentPage === 1 ? 'disabled' : ''} onclick="loadDatabaseData(${currentPage - 1})">Previous</button>
+        <span>Page ${currentPage} of ${totalPages}</span>
+        <button ${currentPage === totalPages ? 'disabled' : ''} onclick="loadDatabaseData(${currentPage + 1})">Next</button>
+      `;
+
+      resultsDiv.style.display = 'block';
+    }
+
+    // Export functionality
+    async function exportData(format) {
+      const filters = {
+        institute: document.getElementById('dbInstituteFilter').value,
+        course: document.getElementById('dbCourseFilter').value,
+        student: document.getElementById('dbStudentFilter').value,
+        status: document.getElementById('dbStatusFilter').value,
+        startDate: document.getElementById('dbStartDate').value,
+        endDate: document.getElementById('dbEndDate').value
+      };
+
+      try {
+        const response = await fetch('/api/certificates/export', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ format, filters })
+        });
+
+        if (format === 'csv') {
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'certificates.csv';
+          a.click();
+        } else {
+          const data = await response.json();
+          const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'certificates.json';
+          a.click();
+        }
+      } catch (error) {
+        console.error('Export error:', error);
+        alert('Error exporting data: ' + error.message);
+      }
+    }
+
+    // Analytics
+    async function loadAnalytics() {
+      try {
+        const response = await fetch('/api/certificates/stats');
+        const data = await response.json();
+        displayAnalytics(data);
+      } catch (error) {
+        console.error('Analytics error:', error);
+        document.getElementById('analyticsContent').innerHTML = `
+          <div class="error">Error loading analytics: ${error.message}</div>
+        `;
+      }
+    }
+
+    function displayAnalytics(data) {
+      document.getElementById('analyticsContent').innerHTML = `
+        <div class="result-stats">
+          <div class="stat-card">
+            <div class="stat-number">${data.totalCertificates || 0}</div>
+            <div class="stat-label">Total Certificates</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${data.totalInstitutes || 0}</div>
+            <div class="stat-label">Total Institutes</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${data.certificatesByMonth?.length || 0}</div>
+            <div class="stat-label">Months Active</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-number">${data.topInstitutes?.length || 0}</div>
+            <div class="stat-label">Top Institutes</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Utility functions
+    function showLoading(elementId) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = '<div class="loading">Loading...</div>';
+      element.style.display = 'block';
+    }
+
+    function showError(elementId, message) {
+      const element = document.getElementById(elementId);
+      element.innerHTML = `<div class="error">${message}</div>`;
+      element.style.display = 'block';
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+      // Set default dates
+      const today = new Date().toISOString().split('T')[0];
+      document.getElementById('dateEnd').value = today;
+      document.getElementById('dbEndDate').value = today;
+      
+      // Load initial data
+      loadDatabaseData();
+    });
+  </script>
+</body>
+</html>

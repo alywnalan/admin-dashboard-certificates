@@ -56,6 +56,10 @@ const certificateSchema = new mongoose.Schema({
   metadata: {
     studentEmail: { type: String },
     studentPhone: { type: String },
+    yearOfStudy: { type: String },
+    semester: { type: String },
+    department: { type: String },
+    branch: { type: String },
     courseDuration: { type: String },
     grade: { type: String },
     instructor: { type: String }

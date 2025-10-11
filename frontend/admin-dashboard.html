@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>🚀 Super Admin Dashboard - Advanced Certificate Management</title>
+  <title> Admin Dashboard - Advanced Certificate Management</title>
   <link rel="stylesheet" href="admin-dashboard.css">
   <link rel="stylesheet" href="dashboard-enhanced.css">
   <link rel="stylesheet" href="super-admin.css">
@@ -41,7 +41,11 @@
         </li>
         <li onclick="showSection('batchSection')" id="btnBatch">
           <span class="menu-icon">📦</span>
-          <span class="menu-text">Batch Operations</span>
+          <span class="menu-text">Batch Generation</span>
+        </li>
+        <li onclick="window.open('batch-validation.html', '_blank')" id="btnBatchValidation">
+          <span class="menu-icon">🔍</span>
+          <span class="menu-text">Enhanced Batch Validation</span>
         </li>
         <li onclick="showSection('validateSection')" id="btnValidate">
           <span class="menu-icon">🔍</span>
@@ -66,6 +70,10 @@
         <li onclick="showSection('settingsSection')" id="btnSettings">
           <span class="menu-icon">⚙️</span>
           <span class="menu-text">System Settings</span>
+        </li>
+        <li onclick="showSection('issuedCertificatesSection'); loadIssuedCertificates(1)" id="btnIssued">
+          <span class="menu-icon">🗂️</span>
+          <span class="menu-text">Issued Certificates</span>
         </li>
         <li onclick="logout()" id="btnLogout">
           <span class="menu-icon">🚪</span>
@@ -118,7 +126,7 @@
           </div>
         </div>
         
-        <!-- Live Activity Feed removed -->
+        
       </div>
 
       <!-- Generate Certificate Section -->
@@ -157,17 +165,44 @@
         <button id="downloadCertBtn" style="display:none;margin-top:16px;">Download PDF</button>
       </div>
 
-      <!-- Batch Operations Section -->
+      <!-- Batch Generation Section -->
       <div id="batchSection" class="section hidden">
         <div class="section-header">
-          <h2>📦 Batch Certificate Operations</h2>
+          <h2>📦 Batch Certificate Generation</h2>
           <div class="header-actions">
             <button onclick="downloadBatchTemplate()" class="btn-secondary">📥 Template</button>
-            <button onclick="validateBatchFile()" class="btn-primary">✅ Validate</button>
           </div>
         </div>
         
         <div class="batch-container">
+          <div class="template-management" style="margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:end;">
+            <div>
+              <h3>🧩 Certificate Template</h3>
+              <label for="templateSelect">Select Template</label>
+              <select id="templateSelect" style="width:100%;padding:8px;">
+                <option value="">Loading templates...</option>
+              </select>
+              <small id="templateHint" style="display:block;color:#666;margin-top:4px;">Choose a template to render certificates.</small>
+            </div>
+            <div>
+              <h3>📤 Upload New Template</h3>
+              <form id="templateUploadForm">
+                <input type="text" id="templateName" placeholder="Template Name" required style="width:100%;margin-bottom:6px;">
+                <input type="text" id="templateDescription" placeholder="Description" style="width:100%;margin-bottom:6px;">
+                <select id="templateType" style="width:100%;margin-bottom:6px;">
+                  <option value="">Auto-detect from file</option>
+                  <option value="html">HTML Template</option>
+                  <option value="pdf">PDF Template</option>
+                  <option value="doc">Word Document</option>
+                  <option value="image">Image Template</option>
+                </select>
+                <input type="file" id="templateFile" accept=".html,.htm,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.svg" required style="width:100%;margin-bottom:6px;">
+                <button type="submit" class="btn-secondary" style="width:100%;">Upload Template</button>
+              </form>
+              <div id="templateUploadStatus" style="color:#666;margin-top:6px;"></div>
+            </div>
+          </div>
+
           <div class="batch-upload">
             <h3>📤 Upload Batch File</h3>
             <input type="file" id="batchFile" accept=".csv,.xlsx" onchange="previewBatchData()">
@@ -190,6 +225,17 @@
             <button onclick="processBatch()" class="btn-primary" disabled>🚀 Process Batch</button>
             <button onclick="generateBatchCertificates()" class="btn-success" disabled>🎓 Generate All</button>
             <button onclick="exportBatchResults()" class="btn-info" disabled>📊 Export Results</button>
+          </div>
+
+          <div id="batchProgressWrapper" style="margin-top:16px;display:none;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+              <span id="batchProgressLabel">Progress</span>
+              <span id="batchProgressCounts">0 / 0</span>
+            </div>
+            <div style="background:#f1f1f5;border-radius:8px;overflow:hidden;height:12px;">
+              <div id="batchProgressBar" style="height:12px;width:0%;background:#28a745;transition:width .2s ease;"></div>
+            </div>
+            <div id="batchProgressStatus" style="margin-top:8px;color:#666;"></div>
           </div>
         </div>
       </div>
@@ -346,8 +392,20 @@
         <form id="addStudentForm" style="margin-bottom:24px;">
           <input type="text" id="studentFullName" placeholder="Full Name" required>
           <input type="email" id="studentEmail" placeholder="Email" required>
-          <input type="text" id="studentCourse" placeholder="Course/Subject" required>
+          <input type="text" id="studentPhone" placeholder="Phone Number">
           <input type="text" id="studentInstitute" placeholder="Institute" required>
+          <input type="text" id="studentDepartment" placeholder="Department" required>
+          <input type="text" id="studentBranch" placeholder="Branch" required>
+          <input type="text" id="studentYear" placeholder="Year of Study" required>
+          <input type="text" id="studentSemester" placeholder="Semester" required>
+          <div class="subjects-container" style="margin:12px 0;">
+            <label>Subjects/Courses:</label>
+            <div id="subjectsList" style="display:grid;gap:8px;margin:8px 0;"></div>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="newSubject" placeholder="Add subject name" style="flex:1;">
+              <button type="button" onclick="addSubject()" class="btn-small">Add Subject</button>
+            </div>
+          </div>
           <button type="submit">Add Student</button>
         </form>
         <input type="text" id="searchStudent" placeholder="Search Students..." style="margin-bottom:12px;width:100%;">
@@ -356,7 +414,10 @@
             <tr>
               <th>Name</th>
               <th>Email</th>
-              <th>Course</th>
+              <th>Department</th>
+              <th>Branch</th>
+              <th>Year</th>
+              <th>Subjects</th>
               <th>Institute</th>
               <th>Actions</th>
             </tr>
@@ -384,11 +445,11 @@
           <!-- KPI Metrics Grid -->
           <div class="kpi-grid">
             <div class="kpi-card primary">
-              <div class="kpi-icon">📊</div>
+              <div class="kpi-icon">🎯</div>
               <div class="kpi-content">
-                <div class="kpi-value" id="totalRevenue">$0</div>
-                <div class="kpi-label">Total Revenue</div>
-                <div class="kpi-change positive" id="revenueChange">+0%</div>
+                <div class="kpi-value" id="totalValidations">0</div>
+                <div class="kpi-label">Total Validations</div>
+                <div class="kpi-change positive" id="validationChange">+0%</div>
               </div>
             </div>
             <div class="kpi-card success">
@@ -396,7 +457,7 @@
               <div class="kpi-content">
                 <div class="kpi-value" id="totalCertificates">0</div>
                 <div class="kpi-label">Certificates Issued</div>
-                <div class="kpi-change positive" id="certChange">+0%</div>
+                <div class="kpi-change positive" id="certChangeKpi">+0%</div>
               </div>
             </div>
             <div class="kpi-card warning">
@@ -404,7 +465,7 @@
               <div class="kpi-content">
                 <div class="kpi-value" id="totalInstitutes">0</div>
                 <div class="kpi-label">Active Institutes</div>
-                <div class="kpi-change positive" id="instChange">+0%</div>
+                <div class="kpi-change positive" id="instChangeKpi">+0%</div>
               </div>
             </div>
             <div class="kpi-card info">
@@ -578,16 +639,16 @@
           <!-- Advanced Metrics Row -->
           <div class="chart-row">
             <div class="chart-card">
-              <h3>💰 Revenue Analysis & Financial Metrics</h3>
-              <canvas id="revenueChart" width="400" height="300"></canvas>
-              <div class="financial-metrics">
+              <h3>🔗 Blockchain Analytics & Security Metrics</h3>
+              <canvas id="blockchainChart" width="400" height="300"></canvas>
+              <div class="blockchain-metrics">
                 <div class="metric-item">
-                  <span class="metric-label">Monthly Recurring Revenue:</span>
-                  <span class="metric-value" id="mrr">$45,230</span>
+                  <span class="metric-label">Anchored Certificates:</span>
+                  <span class="metric-value" id="anchoredCount">0</span>
                 </div>
                 <div class="metric-item">
-                  <span class="metric-label">Customer Lifetime Value:</span>
-                  <span class="metric-value" id="clv">$2,450</span>
+                  <span class="metric-label">Security Score:</span>
+                  <span class="metric-value" id="securityScore">95%</span>
                 </div>
               </div>
             </div>
@@ -757,6 +818,55 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Issued Certificates Section -->
+      <div id="issuedCertificatesSection" class="section hidden">
+        <div class="section-header">
+          <h2>🗂️ Issued Certificates</h2>
+          <div class="header-actions">
+            <button onclick="refreshIssued()" class="btn-refresh">🔄 Refresh</button>
+            <button onclick="exportIssuedCSV()" class="btn-export">📁 Export CSV</button>
+            <button onclick="clearCertificatesStore()" class="btn-danger">🧹 Clear Store</button>
+            <button onclick="loadRecentCertificates()" class="btn-info">🆕 Load Recent</button>
+          </div>
+        </div>
+
+        <div class="recently-generated" style="margin-bottom:16px;padding:16px;border:1px solid #eee;border-radius:8px;background:#fafafa;">
+          <h3>🆕 Recently Generated Certificates</h3>
+          <div id="recentGeneratedList" style="display:grid;gap:8px;"></div>
+        </div>
+
+        <div class="blockchain-status" style="margin-bottom:16px;padding:16px;border:1px solid #ddd;border-radius:8px;background:#f8f9fa;">
+          <h3>🔗 Blockchain Status</h3>
+          <div id="blockchainStatusList" style="display:grid;gap:8px;"></div>
+        </div>
+
+        <div class="database-filters" style="margin-bottom: 16px;">
+          <input type="text" id="issuedSearch" placeholder="Search by student, course, institute...">
+          <input type="date" id="issuedStartDate">
+          <input type="date" id="issuedEndDate">
+          <select id="issuedSortBy">
+            <option value="createdAt">Created Date</option>
+            <option value="student">Student</option>
+            <option value="course">Course</option>
+            <option value="institute">Institute</option>
+          </select>
+          <select id="issuedSortOrder">
+            <option value="desc">Desc</option>
+            <option value="asc">Asc</option>
+          </select>
+          <button class="btn-primary" onclick="loadIssuedCertificates(1)">Apply</button>
+        </div>
+
+        <div class="database-table" id="issuedTableWrapper" style="display:none;">
+          <div class="table-header">
+            <h3>All Issued Certificates</h3>
+          </div>
+          <div class="table-content" id="issuedTableContent"></div>
+          <div class="pagination" id="issuedPagination"></div>
+        </div>
+        <div id="issuedEmpty" style="display:none; padding:16px; color:#666;">No issued certificates found.</div>
       </div>
 
       <!-- Settings Section -->
