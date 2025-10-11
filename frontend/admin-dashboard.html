@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title> Admin Dashboard - Advanced Certificate Management</title>
+  <link rel="stylesheet" href="admin-dashboard.css">
+  <link rel="stylesheet" href="dashboard-enhanced.css">
+  <link rel="stylesheet" href="super-admin.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="libs/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@1.0.0/dist/blazeface.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
+</head>
+<body>
+  <div class="dashboard-container">
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo-container">
+          <span class="logo-icon">🚀</span>
+          <span class="logo-text">Super Admin</span>
+        </div>
+        <div class="admin-status">
+          <span class="status-dot online"></span>
+          <span class="status-text">Online</span>
+        </div>
+      </div>
+      <ul class="sidebar-menu">
+        <li onclick="showSection('dashboardSection')" id="btnDashboard">
+          <span class="menu-icon">📊</span>
+          <span class="menu-text">Executive Dashboard</span>
+        </li>
+        <li onclick="showSection('generateSection')" id="btnGenerate">
+          <span class="menu-icon">🎓</span>
+          <span class="menu-text">AI Certificate Generation</span>
+        </li>
+        <li onclick="showSection('batchSection')" id="btnBatch">
+          <span class="menu-icon">📦</span>
+          <span class="menu-text">Batch Generation</span>
+        </li>
+        <li onclick="window.open('batch-validation.html', '_blank')" id="btnBatchValidation">
+          <span class="menu-icon">🔍</span>
+          <span class="menu-text">Enhanced Batch Validation</span>
+        </li>
+        <li onclick="showSection('validateSection')" id="btnValidate">
+          <span class="menu-icon">🔍</span>
+          <span class="menu-text">Advanced Validation</span>
+        </li>
+        <li onclick="showSection('securitySection')" id="btnSecurity">
+          <span class="menu-icon">🛡️</span>
+          <span class="menu-text">Security Center</span>
+        </li>
+        <li onclick="showSection('institutesSection')" id="btnInstitutes">
+          <span class="menu-icon">🏢</span>
+          <span class="menu-text">Institute Management</span>
+        </li>
+        <li onclick="showSection('studentsSection')" id="btnStudents">
+          <span class="menu-icon">👥</span>
+          <span class="menu-text">Student Management</span>
+        </li>
+        <li onclick="showSection('advancedAnalyticsSection')" id="btnAdvancedAnalytics">
+          <span class="menu-icon">🤖</span>
+          <span class="menu-text">AI Analytics</span>
+        </li>
+        <li onclick="showSection('settingsSection')" id="btnSettings">
+          <span class="menu-icon">⚙️</span>
+          <span class="menu-text">System Settings</span>
+        </li>
+        <li onclick="showSection('issuedCertificatesSection'); loadIssuedCertificates(1)" id="btnIssued">
+          <span class="menu-icon">🗂️</span>
+          <span class="menu-text">Issued Certificates</span>
+        </li>
+        <li onclick="logout()" id="btnLogout">
+          <span class="menu-icon">🚪</span>
+          <span class="menu-text">Secure Logout</span>
+        </li>
+      </ul>
+    </div>
+    <div class="main-content">
+      <!-- Dashboard Section -->
+      <div id="dashboardSection" class="section">
+        <div class="section-header">
+          <h2>🚀 Executive Dashboard</h2>
+          <div class="header-actions">
+            <button onclick="refreshDashboard()" class="btn-refresh">🔄 Refresh</button>
+            <button onclick="exportDashboard()" class="btn-export">📊 Export</button>
+          </div>
+        </div>
+        <div class="dashboard-cards-row">
+          <div class="stat-card primary">
+            <div class="stat-icon">🎓</div>
+            <div class="stat-content">
+              <div class="stat-label">Certificates Issued</div>
+              <div class="stat-value" id="certCount">0</div>
+              <div class="stat-change positive" id="certChange">+0%</div>
+            </div>
+          </div>
+          <div class="stat-card success">
+            <div class="stat-icon">🏢</div>
+            <div class="stat-content">
+              <div class="stat-label">Active Institutes</div>
+              <div class="stat-value" id="instCount">0</div>
+              <div class="stat-change positive" id="instChange">+0%</div>
+            </div>
+          </div>
+          <div class="stat-card warning">
+            <div class="stat-icon">🔗</div>
+            <div class="stat-content">
+              <div class="stat-label">Blockchain Anchored</div>
+              <div class="stat-value" id="blockchainCount">0</div>
+              <div class="stat-change positive" id="blockchainChange">+0%</div>
+            </div>
+          </div>
+          <div class="stat-card danger">
+            <div class="stat-icon">🛡️</div>
+            <div class="stat-content">
+              <div class="stat-label">Security Alerts</div>
+              <div class="stat-value" id="securityAlerts">0</div>
+              <div class="stat-change negative" id="securityChange">+0%</div>
+            </div>
+          </div>
+        </div>
+        
+        
+      </div>
+
+      <!-- Generate Certificate Section -->
+      <div id="generateSection" class="section hidden">
+        <h2>Generate Certificate</h2>
+        <form id="generateCertForm">
+          <label>Student Name</label>
+          <select id="studentNameSelect" required>
+            <option value="">Select Student</option>
+          </select>
+          <label>Institute</label>
+          <select id="instituteSelect" required>
+            <option value="">Select Institute</option>
+          </select>
+          <label>Student Email</label>
+          <input type="text" id="studentEmailDisplay" readonly>
+          <label>Course/Subject</label>
+          <input type="text" id="studentCourseDisplay" readonly>
+          <label>Institute Email</label>
+          <input type="text" id="instituteEmailDisplay" readonly>
+          <label>Institute Location</label>
+          <input type="text" id="instituteLocationDisplay" readonly>
+          <label>Date</label>
+          <input type="date" id="issueDate" required>
+          <label>Background Color</label>
+          <input type="color" id="bgColor" value="#fffbe6">
+          <label>Logo</label>
+          <input type="file" id="logoUpload" accept="image/*">
+          <label>Signature 1</label>
+          <input type="file" id="signUpload1" accept="image/*">
+          <label>Signature 2</label>
+          <input type="file" id="signUpload2" accept="image/*">
+          <button type="submit">Generate Certificate</button>
+        </form>
+        <div id="certificatePreview"></div>
+        <button id="downloadCertBtn" style="display:none;margin-top:16px;">Download PDF</button>
+      </div>
+
+      <!-- Batch Generation Section -->
+      <div id="batchSection" class="section hidden">
+        <div class="section-header">
+          <h2>📦 Batch Certificate Generation</h2>
+          <div class="header-actions">
+            <button onclick="downloadBatchTemplate()" class="btn-secondary">📥 Template</button>
+          </div>
+        </div>
+        
+        <div class="batch-container">
+          <div class="template-management" style="margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:end;">
+            <div>
+              <h3>🧩 Certificate Template</h3>
+              <label for="templateSelect">Select Template</label>
+              <select id="templateSelect" style="width:100%;padding:8px;">
+                <option value="">Loading templates...</option>
+              </select>
+              <small id="templateHint" style="display:block;color:#666;margin-top:4px;">Choose a template to render certificates.</small>
+            </div>
+            <div>
+              <h3>📤 Upload New Template</h3>
+              <form id="templateUploadForm">
+                <input type="text" id="templateName" placeholder="Template Name" required style="width:100%;margin-bottom:6px;">
+                <input type="text" id="templateDescription" placeholder="Description" style="width:100%;margin-bottom:6px;">
+                <select id="templateType" style="width:100%;margin-bottom:6px;">
+                  <option value="">Auto-detect from file</option>
+                  <option value="html">HTML Template</option>
+                  <option value="pdf">PDF Template</option>
+                  <option value="doc">Word Document</option>
+                  <option value="image">Image Template</option>
+                </select>
+                <input type="file" id="templateFile" accept=".html,.htm,.pdf,.doc,.docx,.jpg,.jpeg,.png,.gif,.bmp,.svg" required style="width:100%;margin-bottom:6px;">
+                <button type="submit" class="btn-secondary" style="width:100%;">Upload Template</button>
+              </form>
+              <div id="templateUploadStatus" style="color:#666;margin-top:6px;"></div>
+            </div>
+          </div>
+
+          <div class="batch-upload">
+            <h3>📤 Upload Batch File</h3>
+            <input type="file" id="batchFile" accept=".csv,.xlsx" onchange="previewBatchData()">
+            <div class="upload-info">
+              <p>Supported formats: CSV, Excel (.xlsx)</p>
+              <p>Max file size: 10MB | Max records: 1000</p>
+            </div>
+          </div>
+          
+          <div class="batch-preview">
+            <h3>👀 Data Preview</h3>
+            <div id="batchPreview" class="preview-table"></div>
+            <div class="batch-stats">
+              <span id="batchCount">0 records</span>
+              <span id="batchErrors">0 errors</span>
+            </div>
+          </div>
+          
+          <div class="batch-actions">
+            <button onclick="processBatch()" class="btn-primary" disabled>🚀 Process Batch</button>
+            <button onclick="generateBatchCertificates()" class="btn-success" disabled>🎓 Generate All</button>
+            <button onclick="exportBatchResults()" class="btn-info" disabled>📊 Export Results</button>
+          </div>
+
+          <div id="batchProgressWrapper" style="margin-top:16px;display:none;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+              <span id="batchProgressLabel">Progress</span>
+              <span id="batchProgressCounts">0 / 0</span>
+            </div>
+            <div style="background:#f1f1f5;border-radius:8px;overflow:hidden;height:12px;">
+              <div id="batchProgressBar" style="height:12px;width:0%;background:#28a745;transition:width .2s ease;"></div>
+            </div>
+            <div id="batchProgressStatus" style="margin-top:8px;color:#666;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced Validation Section -->
+      <div id="validateSection" class="section hidden">
+        <div class="section-header">
+          <h2>🔍 Advanced Certificate Validation</h2>
+          <div class="header-actions">
+            <button onclick="bulkValidate()" class="btn-secondary">📋 Bulk Validate</button>
+            <button onclick="validateHistory()" class="btn-info">📜 History</button>
+          </div>
+        </div>
+        
+        <div class="validation-methods">
+          <div class="method-tabs">
+            <button class="tab-btn active" onclick="switchValidationMethod('uuid')">UUID Validation</button>
+            <button class="tab-btn" onclick="switchValidationMethod('qr')">QR Code Scan</button>
+            <button class="tab-btn" onclick="switchValidationMethod('ai')">AI Verification</button>
+            <button class="tab-btn" onclick="switchValidationMethod('blockchain')">Blockchain Check</button>
+          </div>
+          
+          <div id="uuidValidation" class="validation-panel active">
+            <input type="text" id="validateUUID" placeholder="Enter Certificate UUID">
+            <button onclick="validateCertificate()" class="btn-primary">🔍 Validate</button>
+          </div>
+          
+          <div id="qrValidation" class="validation-panel">
+            <button onclick="startQRScan()" class="btn-primary">📱 Start QR Scanner</button>
+            <video id="qrVideo" width="320" height="240" style="display:none;border-radius:8px;margin-top:12px;"></video>
+          </div>
+          
+          <div id="aiValidation" class="validation-panel">
+            <div class="ai-upload">
+              <h4>🤖 AI-Powered Certificate Verification</h4>
+              <input type="file" id="certImageUpload" accept="image/*" onchange="analyzeCertificateImage()">
+              <div id="aiAnalysisResult"></div>
+            </div>
+          </div>
+          
+          <div id="blockchainValidation" class="validation-panel">
+            <input type="text" id="blockchainTxId" placeholder="Enter Transaction ID">
+            <button onclick="verifyBlockchain()" class="btn-primary">🔗 Verify on Chain</button>
+          </div>
+        </div>
+        
+        <div id="validateResult" class="validation-result"></div>
+      </div>
+
+      <!-- Security Center Section -->
+      <div id="securitySection" class="section hidden">
+        <div class="section-header">
+          <h2>🛡️ Security Center</h2>
+          <div class="header-actions">
+            <button onclick="runSecurityAudit()" class="btn-warning">🔍 Audit</button>
+            <button onclick="exportSecurityReport()" class="btn-info">📊 Report</button>
+          </div>
+        </div>
+        
+        <div class="security-grid">
+          <div class="security-card">
+            <h3>🔐 Access Control</h3>
+            <div class="security-metrics">
+              <div class="metric">
+                <span class="metric-label">Active Sessions</span>
+                <span class="metric-value" id="activeSessions">0</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Failed Logins</span>
+                <span class="metric-value" id="failedLogins">0</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Suspicious Activity</span>
+                <span class="metric-value" id="suspiciousActivity">0</span>
+              </div>
+            </div>
+            <button onclick="manageSessions()" class="btn-secondary">Manage Sessions</button>
+          </div>
+          
+          <div class="security-card">
+            <h3>🔗 Blockchain Security</h3>
+            <div class="security-metrics">
+              <div class="metric">
+                <span class="metric-label">Anchored Certificates</span>
+                <span class="metric-value" id="anchoredCerts">0</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Network Status</span>
+                <span class="metric-value" id="networkStatus">Connected</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Last Sync</span>
+                <span class="metric-value" id="lastSync">--:--</span>
+              </div>
+            </div>
+            <button onclick="syncBlockchain()" class="btn-secondary">Sync Now</button>
+          </div>
+          
+          <div class="security-card">
+            <h3>🤖 AI Threat Detection</h3>
+            <div class="security-metrics">
+              <div class="metric">
+                <span class="metric-label">Threats Detected</span>
+                <span class="metric-value" id="threatsDetected">0</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">AI Confidence</span>
+                <span class="metric-value" id="aiConfidence">95%</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Last Scan</span>
+                <span class="metric-value" id="lastScan">--:--</span>
+              </div>
+            </div>
+            <button onclick="runAIScan()" class="btn-secondary">Scan Now</button>
+          </div>
+        </div>
+        
+        <div class="security-alerts">
+          <h3>🚨 Security Alerts</h3>
+          <div id="securityAlertsList" class="alerts-list"></div>
+        </div>
+      </div>
+
+      <!-- Institution Management Section -->
+      <div id="institutesSection" class="section hidden">
+        <h2>Institution Management</h2>
+        <form id="addInstituteForm" style="margin-bottom:24px;">
+          <input type="text" id="instName" placeholder="Institute Name" required>
+          <input type="text" id="instContact" placeholder="Contact Number" required>
+          <input type="email" id="instEmail" placeholder="Email" required>
+          <input type="text" id="instLocation" placeholder="Location" required>
+          <input type="password" id="instPassword" placeholder="Password" required>
+          <button type="submit">Add Institute</button>
+        </form>
+        <input type="text" id="searchInstitute" placeholder="Search Institutes..." style="margin-bottom:12px;width:100%;">
+        <table id="institutesTable" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Contact</th>
+              <th>Email</th>
+              <th>Location</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <!-- Student Management Section -->
+      <div id="studentsSection" class="section hidden">
+        <h2>Student Management</h2>
+        <form id="addStudentForm" style="margin-bottom:24px;">
+          <input type="text" id="studentFullName" placeholder="Full Name" required>
+          <input type="email" id="studentEmail" placeholder="Email" required>
+          <input type="text" id="studentPhone" placeholder="Phone Number">
+          <input type="text" id="studentInstitute" placeholder="Institute" required>
+          <input type="text" id="studentDepartment" placeholder="Department" required>
+          <input type="text" id="studentBranch" placeholder="Branch" required>
+          <input type="text" id="studentYear" placeholder="Year of Study" required>
+          <input type="text" id="studentSemester" placeholder="Semester" required>
+          <div class="subjects-container" style="margin:12px 0;">
+            <label>Subjects/Courses:</label>
+            <div id="subjectsList" style="display:grid;gap:8px;margin:8px 0;"></div>
+            <div style="display:flex;gap:8px;">
+              <input type="text" id="newSubject" placeholder="Add subject name" style="flex:1;">
+              <button type="button" onclick="addSubject()" class="btn-small">Add Subject</button>
+            </div>
+          </div>
+          <button type="submit">Add Student</button>
+        </form>
+        <input type="text" id="searchStudent" placeholder="Search Students..." style="margin-bottom:12px;width:100%;">
+        <table id="studentsTable" style="width:100%;border-collapse:collapse;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Branch</th>
+              <th>Year</th>
+              <th>Subjects</th>
+              <th>Institute</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      
+
+      <!-- Advanced Analytics Section -->
+      <div id="advancedAnalyticsSection" class="section hidden">
+        <h2>🚀 Advanced Analytics & Business Intelligence</h2>
+        
+        <!-- Executive Summary Dashboard -->
+        <div class="executive-summary">
+          <div class="summary-header">
+            <h3>Executive Summary</h3>
+            <div class="summary-actions">
+              <button onclick="generateExecutiveReport()" class="btn-primary">Generate Report</button>
+              <button onclick="scheduleReport()" class="btn-secondary">Schedule Report</button>
+            </div>
+          </div>
+          
+          <!-- KPI Metrics Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card primary">
+              <div class="kpi-icon">🎯</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="totalValidations">0</div>
+                <div class="kpi-label">Total Validations</div>
+                <div class="kpi-change positive" id="validationChange">+0%</div>
+              </div>
+            </div>
+            <div class="kpi-card success">
+              <div class="kpi-icon">🎓</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="totalCertificates">0</div>
+                <div class="kpi-label">Certificates Issued</div>
+                <div class="kpi-change positive" id="certChangeKpi">+0%</div>
+              </div>
+            </div>
+            <div class="kpi-card warning">
+              <div class="kpi-icon">🏢</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="totalInstitutes">0</div>
+                <div class="kpi-label">Active Institutes</div>
+                <div class="kpi-change positive" id="instChangeKpi">+0%</div>
+              </div>
+            </div>
+            <div class="kpi-card info">
+              <div class="kpi-icon">👥</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="totalStudents">0</div>
+                <div class="kpi-label">Total Students</div>
+                <div class="kpi-change positive" id="studentChange">+0%</div>
+              </div>
+            </div>
+            <div class="kpi-card danger">
+              <div class="kpi-icon">📈</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="growthRate">0%</div>
+                <div class="kpi-label">Growth Rate</div>
+                <div class="kpi-change positive" id="growthChange">+0%</div>
+              </div>
+            </div>
+            <div class="kpi-card dark">
+              <div class="kpi-icon">⭐</div>
+              <div class="kpi-content">
+                <div class="kpi-value" id="satisfactionScore">0%</div>
+                <div class="kpi-label">Satisfaction Score</div>
+                <div class="kpi-change positive" id="satisfactionChange">+0%</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Advanced Filters & Controls -->
+        <div class="advanced-filters">
+          <div class="filter-section">
+            <h4>📅 Time Period Analysis</h4>
+            <div class="filter-controls">
+              <div class="filter-group">
+                <label>Date Range:</label>
+                <select id="dateRange">
+                  <option value="7">Last 7 Days</option>
+                  <option value="30" selected>Last 30 Days</option>
+                  <option value="90">Last 3 Months</option>
+                  <option value="180">Last 6 Months</option>
+                  <option value="365">Last Year</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+              </div>
+              <div class="filter-group" id="customDateRange" style="display:none;">
+                <label>From:</label>
+                <input type="date" id="startDate">
+                <label>To:</label>
+                <input type="date" id="endDate">
+              </div>
+              <div class="filter-group">
+                <label>Compare With:</label>
+                <select id="comparePeriod">
+                  <option value="previous">Previous Period</option>
+                  <option value="same_last_year">Same Period Last Year</option>
+                  <option value="rolling_average">Rolling 12-Month Average</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-section">
+            <h4>🎯 Business Segmentation</h4>
+            <div class="filter-controls">
+              <div class="filter-group">
+                <label>Institute:</label>
+                <select id="instituteFilter">
+                  <option value="">All Institutes</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>Course Category:</label>
+                <select id="courseCategoryFilter">
+                  <option value="">All Categories</option>
+                  <option value="technology">Technology</option>
+                  <option value="healthcare">Healthcare</option>
+                  <option value="business">Business</option>
+                  <option value="arts">Arts & Design</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label>Geographic Region:</label>
+                <select id="regionFilter">
+                  <option value="">All Regions</option>
+                  <option value="north">North</option>
+                  <option value="south">South</option>
+                  <option value="east">East</option>
+                  <option value="west">West</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="filter-actions">
+            <button onclick="generateAdvancedReport()" class="btn-primary">🔄 Generate Analytics</button>
+            <button onclick="exportAdvancedReport()" class="btn-secondary">📊 Export PDF</button>
+            <button onclick="exportAdvancedExcel()" class="btn-secondary">📈 Export Excel</button>
+            <button onclick="saveReportTemplate()" class="btn-info">💾 Save Template</button>
+          </div>
+        </div>
+
+        <!-- Advanced Analytics Dashboard -->
+        <div class="analytics-dashboard">
+          <!-- Trend Analysis Row -->
+          <div class="chart-row">
+            <div class="chart-card large">
+              <h3>📈 Certificate Generation Trends & Forecasting</h3>
+              <div class="chart-controls">
+                <button onclick="toggleChartType('advancedCertChart', 'line')" class="btn-small active">Line</button>
+                <button onclick="toggleChartType('advancedCertChart', 'area')" class="btn-small">Area</button>
+                <button onclick="toggleChartType('advancedCertChart', 'bar')" class="btn-small">Bar</button>
+              </div>
+              <canvas id="advancedCertChart" width="600" height="300"></canvas>
+              <div class="chart-insights">
+                <div class="insight-item">
+                  <span class="insight-label">Trend:</span>
+                  <span class="insight-value" id="trendDirection">↗️ Increasing</span>
+                </div>
+                <div class="insight-item">
+                  <span class="insight-label">Forecast:</span>
+                  <span class="insight-value" id="forecastValue">+15% next month</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h3>🏢 Institute Performance Ranking</h3>
+              <canvas id="instituteChart" width="400" height="300"></canvas>
+              <div class="performance-summary">
+                <div class="top-performer">
+                  <span class="rank">🥇</span>
+                  <span class="name" id="topInstitute">Tech Academy</span>
+                  <span class="score" id="topScore">98.5</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Distribution Analysis Row -->
+          <div class="chart-row">
+            <div class="chart-card">
+              <h3>📚 Course Distribution & Popularity</h3>
+              <canvas id="courseChart" width="400" height="300"></canvas>
+              <div class="course-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Most Popular:</span>
+                  <span class="stat-value" id="mostPopularCourse">Web Development</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Growth Rate:</span>
+                  <span class="stat-value" id="courseGrowthRate">+23%</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h3>🌍 Geographic Distribution & Market Penetration</h3>
+              <canvas id="geoChart" width="400" height="300"></canvas>
+              <div class="geo-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Top Region:</span>
+                  <span class="stat-value" id="topRegion">North America</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Market Share:</span>
+                  <span class="stat-value" id="marketShare">45%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Metrics Row -->
+          <div class="chart-row">
+            <div class="chart-card">
+              <h3>🔗 Blockchain Analytics & Security Metrics</h3>
+              <canvas id="blockchainChart" width="400" height="300"></canvas>
+              <div class="blockchain-metrics">
+                <div class="metric-item">
+                  <span class="metric-label">Anchored Certificates:</span>
+                  <span class="metric-value" id="anchoredCount">0</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Security Score:</span>
+                  <span class="metric-value" id="securityScore">95%</span>
+                </div>
+              </div>
+            </div>
+            <div class="chart-card">
+              <h3>📊 Student Engagement & Retention</h3>
+              <canvas id="engagementChart" width="400" height="300"></canvas>
+              <div class="engagement-metrics">
+                <div class="metric-item">
+                  <span class="metric-label">Completion Rate:</span>
+                  <span class="metric-value" id="completionRate">87%</span>
+                </div>
+                <div class="metric-item">
+                  <span class="metric-label">Retention Rate:</span>
+                  <span class="metric-value" id="retentionRate">92%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Data Tables -->
+        <div class="data-analytics">
+          <div class="table-section">
+            <h3>📋 Recent Certificate Activity & Status Tracking</h3>
+            <div class="table-controls">
+              <div class="search-box">
+                <input type="text" id="activitySearch" placeholder="Search activities...">
+                <button onclick="searchActivities()" class="btn-small">🔍</button>
+              </div>
+              <div class="table-filters">
+                <select id="statusFilter">
+                  <option value="">All Statuses</option>
+                  <option value="issued">Issued</option>
+                  <option value="pending">Pending</option>
+                  <option value="expired">Expired</option>
+                </select>
+              </div>
+            </div>
+            <div class="table-container">
+              <table id="recentActivityTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Student</th>
+                    <th>Course</th>
+                    <th>Institute</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          
+          <div class="table-section">
+            <h3>🏆 Top Performing Institutes & Performance Metrics</h3>
+            <div class="table-container">
+              <table id="topInstitutesTable">
+                <thead>
+                  <tr>
+                    <th>Rank</th>
+                    <th>Institute</th>
+                    <th>Certificates Issued</th>
+                    <th>Success Rate</th>
+                    <th>Performance Score</th>
+                    <th>Revenue</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI-Powered Business Intelligence -->
+        <div class="ai-intelligence">
+          <h3>🤖 AI-Powered Business Intelligence & Predictive Analytics</h3>
+          <div class="ai-grid">
+            <div class="ai-card trend-analysis">
+              <div class="ai-icon">📈</div>
+              <div class="ai-content">
+                <h4>Trend Analysis & Pattern Recognition</h4>
+                <p id="trendAnalysis">Certificate generation shows a 15% increase this month compared to last month, with peak activity on Tuesdays and Thursdays.</p>
+                <div class="ai-confidence">
+                  <span class="confidence-label">Confidence:</span>
+                  <span class="confidence-value">94%</span>
+                </div>
+              </div>
+            </div>
+            <div class="ai-card recommendations">
+              <div class="ai-icon">🎯</div>
+              <div class="ai-content">
+                <h4>Strategic Recommendations</h4>
+                <p id="strategicRecommendations">Consider expanding course offerings in technology and healthcare sectors. Launch marketing campaigns during Q2 for maximum impact.</p>
+                <div class="ai-confidence">
+                  <span class="confidence-label">Confidence:</span>
+                  <span class="confidence-value">89%</span>
+                </div>
+              </div>
+            </div>
+            <div class="ai-card risk-assessment">
+              <div class="ai-icon">⚠️</div>
+              <div class="ai-content">
+                <h4>Risk Assessment & Alerts</h4>
+                <p id="riskAssessment">3 institutes have low certificate generation rates this quarter. Consider intervention strategies to improve performance.</p>
+                <div class="ai-confidence">
+                  <span class="confidence-label">Confidence:</span>
+                  <span class="confidence-value">91%</span>
+                </div>
+              </div>
+            </div>
+            <div class="ai-card market-insights">
+              <div class="ai-icon">🔍</div>
+              <div class="ai-content">
+                <h4>Market Insights & Opportunities</h4>
+                <p id="marketInsights">Emerging demand for AI/ML courses in the Asia-Pacific region. Consider strategic partnerships with local institutions.</p>
+                <div class="ai-confidence">
+                  <span class="confidence-label">Confidence:</span>
+                  <span class="confidence-value">87%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-time Monitoring Dashboard (live feed removed) -->
+        <div class="real-time-monitoring">
+          <h3>📡 System Monitoring</h3>
+          <div class="monitoring-grid">
+            <div class="monitor-card">
+              <div class="monitor-header">
+                <h4>⚡ System Performance</h4>
+                <div class="monitor-status online">Optimal</div>
+              </div>
+              <div class="performance-metrics">
+                <div class="perf-item">
+                  <span class="perf-label">Response Time:</span>
+                  <span class="perf-value">45ms</span>
+                </div>
+                <div class="perf-item">
+                  <span class="perf-label">Uptime:</span>
+                  <span class="perf-value">99.9%</span>
+                </div>
+                <div class="perf-item">
+                  <span class="perf-label">Active Users:</span>
+                  <span class="perf-value">127</span>
+                </div>
+              </div>
+            </div>
+            <div class="monitor-card">
+              <div class="monitor-header">
+                <h4>📡 Network Status</h4>
+                <div class="monitor-status online">Online</div>
+              </div>
+              <div class="performance-metrics">
+                <div class="perf-item">
+                  <span class="perf-label">API Latency:</span>
+                  <span class="perf-value">32ms</span>
+                </div>
+                <div class="perf-item">
+                  <span class="perf-label">WebSocket:</span>
+                  <span class="perf-value">Connected</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issued Certificates Section -->
+      <div id="issuedCertificatesSection" class="section hidden">
+        <div class="section-header">
+          <h2>🗂️ Issued Certificates</h2>
+          <div class="header-actions">
+            <button onclick="refreshIssued()" class="btn-refresh">🔄 Refresh</button>
+            <button onclick="exportIssuedCSV()" class="btn-export">📁 Export CSV</button>
+            <button onclick="clearCertificatesStore()" class="btn-danger">🧹 Clear Store</button>
+            <button onclick="loadRecentCertificates()" class="btn-info">🆕 Load Recent</button>
+          </div>
+        </div>
+
+        <div class="recently-generated" style="margin-bottom:16px;padding:16px;border:1px solid #eee;border-radius:8px;background:#fafafa;">
+          <h3>🆕 Recently Generated Certificates</h3>
+          <div id="recentGeneratedList" style="display:grid;gap:8px;"></div>
+        </div>
+
+        <div class="blockchain-status" style="margin-bottom:16px;padding:16px;border:1px solid #ddd;border-radius:8px;background:#f8f9fa;">
+          <h3>🔗 Blockchain Status</h3>
+          <div id="blockchainStatusList" style="display:grid;gap:8px;"></div>
+        </div>
+
+        <div class="database-filters" style="margin-bottom: 16px;">
+          <input type="text" id="issuedSearch" placeholder="Search by student, course, institute...">
+          <input type="date" id="issuedStartDate">
+          <input type="date" id="issuedEndDate">
+          <select id="issuedSortBy">
+            <option value="createdAt">Created Date</option>
+            <option value="student">Student</option>
+            <option value="course">Course</option>
+            <option value="institute">Institute</option>
+          </select>
+          <select id="issuedSortOrder">
+            <option value="desc">Desc</option>
+            <option value="asc">Asc</option>
+          </select>
+          <button class="btn-primary" onclick="loadIssuedCertificates(1)">Apply</button>
+        </div>
+
+        <div class="database-table" id="issuedTableWrapper" style="display:none;">
+          <div class="table-header">
+            <h3>All Issued Certificates</h3>
+          </div>
+          <div class="table-content" id="issuedTableContent"></div>
+          <div class="pagination" id="issuedPagination"></div>
+        </div>
+        <div id="issuedEmpty" style="display:none; padding:16px; color:#666;">No issued certificates found.</div>
+      </div>
+
+      <!-- Settings Section -->
+      <div id="settingsSection" class="section hidden">
+        <h2>Settings</h2>
+        <label>Sidebar Color</label>
+        <input type="color" id="dashboardColor" value="#23234a">
+        <label>Dark Mode</label>
+        <input type="checkbox" id="themeToggle">
+        <label style="display:block;margin-top:12px;">Realtime Updates</label>
+        <input type="checkbox" id="realtimeToggle" checked>
+        <label style="display:block;margin-top:12px;">Refresh Interval</label>
+        <select id="refreshInterval">
+          <option value="5000">5 seconds</option>
+          <option value="15000">15 seconds</option>
+          <option value="30000" selected>30 seconds</option>
+          <option value="60000">1 minute</option>
+        </select>
+        <hr>
+        <h3>Admin Profile</h3>
+        <form id="profileForm">
+          <label>Email</label>
+          <input type="email" id="adminEmail" value="admin@email.com" required>
+          <label>Change Password</label>
+          <input type="password" id="adminPassword" placeholder="New Password">
+          <label>Avatar</label>
+          <input type="file" id="adminAvatar" accept="image/*">
+          <button type="submit">Update Profile</button>
+        </form>
+        <img id="profilePic" src="" alt="Avatar" style="width:64px;height:64px;border-radius:50%;margin-top:12px;display:none;">
+      </div>
+    </div>
+  </div>
+  <script src="admin-dashboard.js"></script>
+  <script src="dashboard-enhanced.js" defer></script>
+  <script src="super-admin.js"></script>
+  
+  <!-- Real-time Notification System -->
+  <div id="notificationContainer" style="position: fixed; top: 20px; right: 20px; z-index: 10000;"></div>
+  
+  <script>
+    // Real-time notification system
+    class NotificationSystem {
+      constructor() {
+        this.container = document.getElementById('notificationContainer');
+        this.notifications = [];
+      }
+      
+      show(message, type = 'info', duration = 5000) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.style.cssText = `
+          background: white;
+          border-left: 4px solid ${this.getColor(type)};
+          padding: 15px 20px;
+          margin-bottom: 10px;
+          border-radius: 4px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          min-width: 300px;
+          animation: slideIn 0.3s ease;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        `;
+        
+        notification.innerHTML = `
+          <div>
+            <div style="font-weight: 600; margin-bottom: 5px;">${this.getTitle(type)}</div>
+            <div style="font-size: 14px; color: #666;">${message}</div>
+          </div>
+          <button onclick="this.parentElement.remove()" style="background: none; border: none; font-size: 18px; cursor: pointer; color: #999;">×</button>
+        `;
+        
+        this.container.appendChild(notification);
+        
+        setTimeout(() => {
+          if (notification.parentElement) {
+            notification.remove();
+          }
+        }, duration);
+      }
+      
+      getColor(type) {
+        const colors = {
+          success: '#28a745',
+          error: '#dc3545',
+          warning: '#ffc107',
+          info: '#17a2b8'
+        };
+        return colors[type] || colors.info;
+      }
+      
+      getTitle(type) {
+        const titles = {
+          success: 'Success',
+          error: 'Error',
+          warning: 'Warning',
+          info: 'Info'
+        };
+        return titles[type] || 'Info';
+      }
+    }
+    
+    // Initialize notification system
+    window.notificationSystem = new NotificationSystem();
+    
+    // Add CSS animation
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+</body>
+</html>

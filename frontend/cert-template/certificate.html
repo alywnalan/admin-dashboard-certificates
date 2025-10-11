@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Certificate</title>
+<link rel="stylesheet" href="certificate.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+<div class="certificate">
+  <div class="certificate-border">
+    <div class="cert-uuid">
+      Certificate ID<br>
+      <span id="certUUID"></span>
+    </div>
+    <div id="qrCode"
+      style="position: absolute; top: 40px; right: 32px; background: white; padding: 10px; border-radius: 10px; box-shadow: rgba(0, 0, 0, 0.1) 0px 4px 8px;">
+      <!-- QR code image or canvas here -->
+    </div>
+    <div class="cert-content">
+      <h1>Certificate of Achievement</h1>
+      <h2 id="certStudentName">Student Name</h2>
+      <h3 id="certCourse">Course/Subject</h3>
+      <p id="certInstitute">Institute Name</p>
+      <p id="certDate">Date: <span></span></p>
+    </div>
+  </div>
+</div>
+<script src="certificate.js"></script>
+
+</body>
+</html>
