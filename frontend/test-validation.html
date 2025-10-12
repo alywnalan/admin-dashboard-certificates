@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Certificate Validation Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 8px; }
+        .result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+        input { padding: 8px; margin: 5px; width: 300px; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Certificate Validation Test</h1>
+    
+        <div class="test-section">
+      <h2>1. Debug Test (Create & Validate)</h2>
+      <button onclick="debugTest()">Run Debug Test</button>
+      <div id="debugResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+      <h2>2. Check All Certificates</h2>
+      <button onclick="checkAllCertificates()">Check All Certificates</button>
+      <div id="allCertificates" class="result"></div>
+    </div>
+    
+        <div class="test-section">
+      <h2>3. Test Certificate Generation</h2>
+      <button onclick="generateTestCertificate()">Generate Test Certificate</button>
+      <div id="generationResult" class="result"></div>
+    </div>
+    
+    <div class="test-section">
+      <h2>4. Test Certificate Validation</h2>
+      <input type="text" id="testUUID" placeholder="Enter UUID to test">
+      <button onclick="testValidation()">Test Validation</button>
+      <div id="validationResult" class="result"></div>
+    </div>
+    
+                 <div class="test-section">
+       <h2>5. Test AI Image Analysis</h2>
+       <input type="file" id="testImage" accept="image/*">
+       <button onclick="testAIAnalysis()">Test AI Analysis</button>
+       <div id="aiResult" class="result"></div>
+     </div>
+     
+     <div class="test-section">
+       <h2>6. Test Blockchain Verification</h2>
+       <input type="text" id="testTxId" placeholder="Enter Transaction ID">
+       <button onclick="testBlockchain()">Test Blockchain</button>
+       <div id="blockchainResult" class="result"></div>
+     </div>
+     
+     <div class="test-section">
+       <h2>7. Test API Base</h2>
+       <button onclick="testAPIBase()">Test API Base</button>
+       <div id="apiResult" class="result"></div>
+     </div>
+
+    <script>
+        // Use the same API configuration as the main dashboard
+        const API_HOST = (window.location.port === '5500') ? 'http://localhost:5000' : '';
+        const API_BASE = `${API_HOST}/api`;
+        
+        console.log('🔧 Test Page API Configuration:');
+        console.log('🔧 Window location port:', window.location.port);
+        console.log('🔧 API_HOST:', API_HOST);
+        console.log('🔧 API_BASE:', API_BASE);
+        
+        async function debugTest() {
+            const resultDiv = document.getElementById('debugResult');
+            resultDiv.innerHTML = '<div class="info">Running debug test...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/certificates/debug/test`);
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>🧪 Debug Test Results</h3>
+                            <p><strong>Test Certificate Created:</strong> ${data.created}</p>
+                            <p><strong>Certificate Found in DB:</strong> ${data.found ? '✅ Yes' : '❌ No'}</p>
+                            ${data.certificate ? `
+                                <h4>Certificate Details:</h4>
+                                <p><strong>UUID:</strong> ${data.certificate.uuid}</p>
+                                <p><strong>Student:</strong> ${data.certificate.student}</p>
+                                <p><strong>GeneratedByAdmin:</strong> ${data.certificate.generatedByAdmin}</p>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Debug test failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function checkAllCertificates() {
+            const resultDiv = document.getElementById('allCertificates');
+            resultDiv.innerHTML = '<div class="info">Loading...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/certificates/debug/all`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>Found ${data.count} certificates:</h3>
+                        <pre>${JSON.stringify(data.certificates, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function generateTestCertificate() {
+            const resultDiv = document.getElementById('generationResult');
+            resultDiv.innerHTML = '<div class="info">Generating...</div>';
+            
+            try {
+                const testData = {
+                    student: 'Test Student',
+                    course: 'Test Course',
+                    institute: 'Test Institute',
+                    date: new Date().toISOString().split('T')[0],
+                    uuid: 'test-' + Date.now(),
+                    generatedByAdmin: true
+                };
+                
+                const response = await fetch(`${API_BASE}/certificates`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>Certificate Generated Successfully!</h3>
+                            <p><strong>UUID:</strong> ${data.certificate.uuid}</p>
+                            <p><strong>Student:</strong> ${data.certificate.student}</p>
+                            <p><strong>GeneratedByAdmin:</strong> ${data.certificate.generatedByAdmin}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Error: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testValidation() {
+            const uuid = document.getElementById('testUUID').value.trim();
+            const resultDiv = document.getElementById('validationResult');
+            
+            if (!uuid) {
+                resultDiv.innerHTML = '<div class="error">Please enter a UUID</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">Validating...</div>';
+            
+            try {
+                console.log('🔍 Testing validation for UUID:', uuid);
+                console.log('🔍 Using API_BASE:', API_BASE);
+                console.log('🔍 Full validation URL:', `${API_BASE}/certificates/validate/${uuid}`);
+                
+                const response = await fetch(`${API_BASE}/certificates/validate/${uuid}`);
+                console.log('🔍 Validation response status:', response.status);
+                
+                const data = await response.json();
+                console.log('🔍 Validation response data:', data);
+                
+                if (data.valid) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>✅ Certificate Valid!</h3>
+                            <p><strong>UUID:</strong> ${data.certificate.uuid}</p>
+                            <p><strong>Student:</strong> ${data.certificate.student}</p>
+                            <p><strong>Course:</strong> ${data.certificate.course}</p>
+                            <p><strong>Institute:</strong> ${data.certificate.institute}</p>
+                            <p><strong>GeneratedByAdmin:</strong> ${data.certificate.generatedByAdmin}</p>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="error">
+                            <h3>❌ Certificate Invalid!</h3>
+                            <p><strong>Message:</strong> ${data.message}</p>
+                            <p><strong>Error:</strong> ${data.error || 'Unknown error'}</p>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testAPIBase() {
+            const resultDiv = document.getElementById('apiResult');
+            resultDiv.innerHTML = '<div class="info">Testing API...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/certificates/stats`);
+                const data = await response.json();
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ API Working!</h3>
+                        <p><strong>Total Certificates:</strong> ${data.totalCertificates}</p>
+                        <p><strong>Total Institutes:</strong> ${data.totalInstitutes}</p>
+                        <p><strong>API Base:</strong> ${API_BASE}</p>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">API Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testAIAnalysis() {
+            const fileInput = document.getElementById('testImage');
+            const resultDiv = document.getElementById('aiResult');
+            
+            if (!fileInput.files[0]) {
+                resultDiv.innerHTML = '<div class="error">Please select an image file</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">Analyzing image...</div>';
+            
+            try {
+                // Convert file to base64
+                const file = fileInput.files[0];
+                const base64 = await fileToBase64(file);
+                
+                const response = await fetch(`${API_BASE}/certificates/analyze-image`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageData: base64 })
+                });
+                
+                const data = await response.json();
+                console.log('AI Analysis response:', data);
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>🤖 AI Analysis Results</h3>
+                            <p><strong>Certificate Found:</strong> ${data.certificateFound ? '✅ Yes' : '❌ No'}</p>
+                            <p><strong>Authenticity:</strong> ${data.authenticity}</p>
+                            <p><strong>Confidence:</strong> ${data.confidence}%</p>
+                            <p><strong>Elements Detected:</strong> ${data.detectedElements.join(', ')}</p>
+                            ${data.certificate ? `
+                                <h4>Certificate Details:</h4>
+                                <p><strong>Student:</strong> ${data.certificate.student}</p>
+                                <p><strong>Course:</strong> ${data.certificate.course}</p>
+                                <p><strong>Institute:</strong> ${data.certificate.institute}</p>
+                                <p><strong>UUID:</strong> ${data.certificate.uuid}</p>
+                            ` : ''}
+                            <h4>Recommendations:</h4>
+                            <ul>
+                                ${data.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                            </ul>
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">AI Analysis failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        async function testBlockchain() {
+            const txId = document.getElementById('testTxId').value.trim();
+            const resultDiv = document.getElementById('blockchainResult');
+            
+            if (!txId) {
+                resultDiv.innerHTML = '<div class="error">Please enter a transaction ID</div>';
+                return;
+            }
+            
+            resultDiv.innerHTML = '<div class="info">Verifying on blockchain...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/certificates/verify-blockchain`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ txId: txId })
+                });
+                
+                const data = await response.json();
+                console.log('Blockchain verification response:', data);
+                
+                if (data.success) {
+                    resultDiv.innerHTML = `
+                        <div class="success">
+                            <h3>🔗 Blockchain Verification Results</h3>
+                            <p><strong>Status:</strong> ${data.verified ? '✅ Verified' : '❌ Not Found'}</p>
+                            <p><strong>Certificate Found:</strong> ${data.certificateFound ? '✅ Yes' : '❌ No'}</p>
+                            <p><strong>Transaction ID:</strong> ${data.txId}</p>
+                            <p><strong>Network:</strong> ${data.blockchain.network}</p>
+                            <p><strong>Block Number:</strong> ${data.blockchain.blockNumber}</p>
+                            ${data.certificate ? `
+                                <h4>Certificate Details:</h4>
+                                <p><strong>Student:</strong> ${data.certificate.student}</p>
+                                <p><strong>Course:</strong> ${data.certificate.course}</p>
+                                <p><strong>Institute:</strong> ${data.certificate.institute}</p>
+                                <p><strong>UUID:</strong> ${data.certificate.uuid}</p>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<div class="error">Blockchain verification failed: ${data.message}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+    </script>
+</body>
+</html>
