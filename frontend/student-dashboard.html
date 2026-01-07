@@ -4,7 +4,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Student Dashboard</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    window.API_BASE = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500' ? 'http://127.0.0.1:5000' : '';
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = (window.API_BASE || '') + '/css/style.css'; document.head.appendChild(link);
+  </script>
 </head>
 <body>
   <div class="container">
@@ -42,7 +45,7 @@
       const token = localStorage.getItem('studentToken');
       if (!token) return location.href = '/auth.html';
       try {
-        const res = await fetch('/api/students/me', { headers: { 'Authorization': 'Bearer ' + token }});
+        const res = await fetch((window.API_BASE || '') + '/api/students/me', { headers: { 'Authorization': 'Bearer ' + token }});
         if (res.status === 401) return location.href = '/auth.html';
         const data = await res.json();
         document.getElementById('profileInfo').innerHTML = `
@@ -57,7 +60,7 @@
       const token = localStorage.getItem('studentToken');
       if (!token) return location.href = '/auth.html';
       try {
-        const res = await fetch('/api/students/my-courses', { headers: { 'Authorization': 'Bearer ' + token }});
+        const res = await fetch((window.API_BASE || '') + '/api/students/my-courses', { headers: { 'Authorization': 'Bearer ' + token }});
         if (res.status === 401) return location.href = '/auth.html';
         const data = await res.json();
         const list = document.getElementById('coursesList');
@@ -80,7 +83,7 @@
       const token = localStorage.getItem('studentToken');
       if (!token) return location.href = '/auth.html';
       try {
-        const res = await fetch('/api/students/me/certificates', { headers: { 'Authorization': 'Bearer ' + token }});
+        const res = await fetch((window.API_BASE || '') + '/api/students/me/certificates', { headers: { 'Authorization': 'Bearer ' + token }});
         if (res.status === 401) return location.href = '/auth.html';
         const data = await res.json();
         const list = document.getElementById('certList');
@@ -105,7 +108,7 @@
       const institute = document.getElementById('courseInstitute').value.trim();
       if (!courseName) return alert('Course name required');
       try {
-        const res = await fetch('/api/students/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ courseName, institute }) });
+        const res = await fetch((window.API_BASE || '') + '/api/students/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ courseName, institute }) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Enroll failed');
         document.getElementById('courseName').value = '';
@@ -119,7 +122,7 @@
     async function updateCourse(id, payload) {
       const token = localStorage.getItem('studentToken');
       try {
-        const res = await fetch('/api/students/my-courses/' + id, { method: 'PATCH', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(payload) });
+        const res = await fetch((window.API_BASE || '') + '/api/students/my-courses/' + id, { method: 'PATCH', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.message || 'Update failed');
         fetchCourses();

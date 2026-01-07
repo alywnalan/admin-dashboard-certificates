@@ -4,7 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Sign In / Register</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <script>
+    // Configure API_BASE so frontend works when served by Live Server (5500) or backend (5000)
+    (function(){
+      const useLivePort = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500';
+      window.API_BASE = useLivePort ? 'http://127.0.0.1:5000' : '';
+      // Inject stylesheet from appropriate origin
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = (window.API_BASE || '') + '/css/style.css';
+      document.head.appendChild(link);
+    })();
+  </script>
   <style>
     /* Polished auth styling */
     body { background: linear-gradient(135deg,#f0f9ff 0%, #fef3c7 100%); font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
@@ -170,7 +181,7 @@
           else { url = '/api/auth/register'; body = { username: email.split('@')[0], email, password }; }
         }
 
-        const res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await fetch((window.API_BASE || '') + url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
         let data;
         try { data = await res.json(); } catch (e) { data = { message: res.statusText || 'Request failed' }; }
 
@@ -183,7 +194,7 @@
             const btn = document.createElement('button');
             btn.textContent = 'Resend verification';
             btn.style.marginTop = '8px';
-            btn.onclick = async () => { btn.disabled = true; btn.textContent = 'Resending...'; await fetch('/api/students/send-verification', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) }); btn.textContent = 'Sent'; setTimeout(()=>btn.remove(),3000); };
+            btn.onclick = async () => { btn.disabled = true; btn.textContent = 'Resending...'; await fetch((window.API_BASE || '') + '/api/students/send-verification', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) }); btn.textContent = 'Sent'; setTimeout(()=>btn.remove(),3000); };
             helper.appendChild(btn);
           }
           return;

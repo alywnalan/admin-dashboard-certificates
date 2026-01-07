@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Enhanced Batch Validation & Database Interface</title>
-  <link rel="stylesheet" href="css/style.css">
+  <script>
+    window.API_BASE = (location.hostname === '127.0.0.1' || location.hostname === 'localhost') && location.port === '5500' ? 'http://127.0.0.1:5000' : '';
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = (window.API_BASE || '') + '/css/style.css'; document.head.appendChild(link);
+  </script>
   <link rel="icon" href="assets/logo.png">
   <style>
     .batch-container {
@@ -574,7 +577,7 @@
 
       try {
         showLoading('validationResults');
-        const response = await fetch('/api/certificates/bulk-validate', {
+        const response = await fetch((window.API_BASE || '') + '/api/certificates/bulk-validate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -761,7 +764,7 @@
       };
 
       try {
-        const response = await fetch('/api/certificates/export', {
+        const response = await fetch((window.API_BASE || '') + '/api/certificates/export', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -794,7 +797,7 @@
     // Analytics
     async function loadAnalytics() {
       try {
-        const response = await fetch('/api/certificates/stats');
+        const response = await fetch((window.API_BASE || '') + '/api/certificates/stats');
         const data = await response.json();
         displayAnalytics(data);
       } catch (error) {
