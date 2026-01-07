@@ -1,0 +1,368 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Sign In / Register</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Polished auth styling */
+    body { background: linear-gradient(135deg,#f0f9ff 0%, #fef3c7 100%); font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+    .container { max-width: 480px; margin: 48px auto; padding: 28px; background: linear-gradient(180deg, #ffffff, #fbfbff); border-radius: 12px; box-shadow: 0 12px 30px rgba(15,23,42,0.08); border: 1px solid rgba(99,102,241,0.06); }
+    .tabs { display:flex; gap:8px; margin-bottom:12px; }
+    .tab { flex:1; padding:12px; text-align:center; cursor:pointer; border-radius:8px; background:#f4f6fb; font-weight:600; }
+    .tab.active { background: linear-gradient(90deg,#6366f1,#06b6d4); color:#fff; }
+    .role-select { margin: 12px 0; display:flex; gap:8px; }
+    .role-option { flex:1; padding:12px; text-align:left; border-radius:10px; cursor:pointer; border:1px solid rgba(15,23,42,0.04); background:#fff; display:flex; flex-direction:column; gap:6px; }
+    .role-option:hover, .role-option:focus { box-shadow: 0 8px 20px rgba(2,6,23,0.06); transform: translateY(-1px); }
+    .role-option.active { background: linear-gradient(90deg,#eef2ff,#f0f9ff); border-color:rgba(99,102,241,0.16); }
+    .role-option strong { font-size:15px }
+    .role-option div { font-size:12px; color:#6b7280 }
+    .role-option input { display:none; }
+    input, button { width:100%; padding:12px; margin:6px 0; border-radius:8px; border:1px solid #e6e9f2; font-size:14px; }
+    input:focus { outline: none; box-shadow: 0 4px 18px rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.3); }
+    button { cursor:pointer; background: linear-gradient(90deg,#6366f1,#06b6d4); color:#fff; border:none; font-weight:700; }
+    .muted { color:#6b7280; font-size:13px; }
+    .flex { display:flex; gap:8px; }
+    .success { color:#059669; font-weight:600 }
+    .error { color:#dc2626; font-weight:600 }
+    #socialButtons button { background:#fff; border:1px solid rgba(15,23,42,0.06); font-weight:600 }
+    #socialButtons button:hover { box-shadow: 0 6px 16px rgba(2,6,23,0.06); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 id="formTitle">Login</h2>
+    <div class="tabs">
+      <div id="tabLogin" class="tab active">Login</div>
+      <div id="tabRegister" class="tab">Register</div>
+    </div>
+
+    <div class="role-select" role="tablist" aria-label="User role">
+      <!-- Accessible radio-like role selector -->
+      <label class="role-option" for="role_student" id="labelRoleStudent" tabindex="0">
+        <input type="radio" name="role" id="role_student" value="student" checked style="display:none" />
+        <div><strong>Student</strong><div style="font-size:12px;color:#6b7280;">Access student dashboard</div></div>
+      </label>
+      <label class="role-option" for="role_admin" id="labelRoleAdmin" tabindex="0">
+        <input type="radio" name="role" id="role_admin" value="admin" style="display:none" />
+        <div><strong>Admin</strong><div style="font-size:12px;color:#6b7280;">Access admin dashboard</div></div>
+      </label>
+    </div>
+    <div class="muted" style="font-size:12px;margin-bottom:6px">Tip: Click a role to switch. You can preselect with query params, e.g. <code>/auth.html?role=admin&amp;mode=register</code>.</div>
+
+    <form id="authForm">
+      <input type="text" id="name" placeholder="Full name (register only)" style="display:none;">
+      <input type="email" id="email" placeholder="Email" required>
+      <input type="password" id="password" placeholder="Password" required>
+      <div id="actionHelpers" style="margin-top:6px;"></div>
+
+      <div id="passwordHelp" style="display:none;margin:6px 0;">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;">
+          <div id="strengthBar" style="flex:1;height:8px;border-radius:6px;background:#eee;overflow:hidden;"></div>
+          <div id="strengthText" style="min-width:90px;text-align:right;font-size:12px;color:#6b7280;">&nbsp;</div>
+        </div>
+        <div id="passwordChecklist" class="muted" style="font-size:12px;line-height:1.3">
+          <div id="checkLen">• At least 8 characters</div>
+          <div id="checkUpper">• Uppercase letter</div>
+          <div id="checkLower">• Lowercase letter</div>
+          <div id="checkNumber">• Number</div>
+          <div id="checkSpecial">• Special character</div>
+        </div>
+      </div>
+
+      <div id="socialButtons" style="display:flex;gap:8px;margin:8px 0;">
+        <button id="googleSSO" type="button" style="flex:1;background:#fff;border:1px solid #e6e9f2;padding:8px;border-radius:6px;">Sign in with Google</button>
+        <button id="msSSO" type="button" style="flex:1;background:#fff;border:1px solid #e6e9f2;padding:8px;border-radius:6px;">Sign in with Microsoft</button>
+      </div>
+
+      <div id="extraFields" style="display:none;"></div>
+      <button id="submitBtn">Login</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;">
+        <a href="#" id="forgotToggleLink" style="font-size:13px;color:#0369a1;text-decoration:none">Forgot password?</a>
+        <div style="font-size:13px;color:#6b7280">Quick: <a href="/auth.html?role=student&mode=register" style="color:#0369a1">Student Register</a> • <a href="/auth.html?role=admin&mode=login" style="color:#0369a1">Admin Login</a></div>
+      </div>
+    </form>
+
+    <div id="forgotSection" style="margin-top:8px;display:none;">
+      <h4 style="margin:6px 0 8px">Forgot password</h4>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="forgotEmail" type="email" placeholder="Your email" style="flex:1;padding:8px;border-radius:6px;border:1px solid #e6e9f2" />
+        <button id="forgotSend" style="padding:8px 12px;border-radius:6px;border:none;background:#06b6d4;color:#fff">Send</button>
+      </div>
+      <div id="forgotResult" class="muted" style="margin-top:8px;font-size:13px"></div>
+    </div>
+
+    <div id="resetSection" style="margin-top:8px;display:none;">
+      <h4 style="margin:6px 0 8px">Reset password</h4>
+      <input id="resetNew" type="password" placeholder="New password" style="padding:8px;border-radius:6px;border:1px solid #e6e9f2;margin-bottom:6px;" />
+      <input id="resetConfirm" type="password" placeholder="Confirm password" style="padding:8px;border-radius:6px;border:1px solid #e6e9f2;margin-bottom:6px;" />
+      <div style="display:flex;gap:8px;"><button id="resetSubmit" style="flex:1;padding:10px;border-radius:6px;border:none;background:#6366f1;color:#fff">Reset Password</button></div>
+      <div id="resetResult" class="muted" style="margin-top:8px;font-size:13px"></div>
+    </div>
+
+    <div id="message" class="muted"></div>
+    <p class="muted">Choose role and tab to switch between login and registration. Admin and Student have separate dashboards.</p>
+  </div>
+
+  <script>
+    let mode = 'login'; // login | register
+    let role = 'student'; // student | admin
+    const tabLogin = document.getElementById('tabLogin');
+    const tabRegister = document.getElementById('tabRegister');
+    const roleStudent = document.getElementById('roleStudent');
+    const roleAdmin = document.getElementById('roleAdmin');
+    const formTitle = document.getElementById('formTitle');
+    const nameField = document.getElementById('name');
+    const submitBtn = document.getElementById('submitBtn');
+    const message = document.getElementById('message');
+
+    function setMode(m) {
+      mode = m;
+      tabLogin.classList.toggle('active', m==='login');
+      tabRegister.classList.toggle('active', m==='register');
+      formTitle.textContent = m==='login' ? 'Login' : 'Register';
+      nameField.style.display = m==='register' ? 'block' : 'none';
+      submitBtn.textContent = m==='login' ? 'Login' : 'Register';
+      message.textContent = '';
+    }
+
+    function setRole(r) {
+      role = r;
+      // update visual radio inputs and labels
+      document.getElementById('role_student').checked = (r === 'student');
+      document.getElementById('role_admin').checked = (r === 'admin');
+      document.getElementById('labelRoleStudent').classList.toggle('active', r === 'student');
+      document.getElementById('labelRoleAdmin').classList.toggle('active', r === 'admin');
+      message.textContent = '';
+      // focus email for faster input
+      document.getElementById('email').focus();
+    }
+
+    // Support keyboard and pointer activation
+    tabLogin.onclick = () => setMode('login');
+    tabRegister.onclick = () => setMode('register');
+    document.getElementById('labelRoleStudent').addEventListener('click', () => setRole('student'));
+    document.getElementById('labelRoleAdmin').addEventListener('click', () => setRole('admin'));
+    document.getElementById('labelRoleStudent').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRole('student'); } });
+    document.getElementById('labelRoleAdmin').addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setRole('admin'); } });
+
+    // Read URL params to preselect role/mode (e.g., /auth.html?role=admin&mode=register)
+    (function applyUrlParams() {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const r = params.get('role');
+        const m = params.get('mode');
+        if (r === 'admin' || r === 'student') setRole(r);
+        if (m === 'register' || m === 'login') setMode(m);
+      } catch (e) { /* ignore */ }
+    })();
+
+    function passwordScore(pw) {
+      let score = 0;
+      if (!pw) return 0;
+      if (pw.length >= 8) score += 1;
+      if (/[A-Z]/.test(pw)) score += 1;
+      if (/[a-z]/.test(pw)) score += 1;
+      if (/[0-9]/.test(pw)) score += 1;
+      if (/[^A-Za-z0-9]/.test(pw)) score += 1;
+      return score; // 0-5
+    }
+
+    function updatePasswordUI() {
+      const pw = document.getElementById('password').value;
+      const score = passwordScore(pw);
+      const bar = document.getElementById('strengthBar');
+      const text = document.getElementById('strengthText');
+      const colors = ['#eee','#fb7185','#f59e0b','#f59e0b','#60a5fa','#10b981'];
+      const pct = (score/5)*100;
+      bar.innerHTML = `<div style="height:100%;width:${pct}%;background:${colors[score]};border-radius:6px"></div>`;
+      const labels = ['Too weak','Weak','Fair','Good','Strong','Excellent'];
+      text.textContent = labels[score];
+      document.getElementById('passwordHelp').style.display = mode === 'register' ? 'block' : 'none';
+      document.getElementById('checkLen').style.color = pw.length >= 8 ? 'green' : '#6b7280';
+      document.getElementById('checkUpper').style.color = /[A-Z]/.test(pw) ? 'green' : '#6b7280';
+      document.getElementById('checkLower').style.color = /[a-z]/.test(pw) ? 'green' : '#6b7280';
+      document.getElementById('checkNumber').style.color = /[0-9]/.test(pw) ? 'green' : '#6b7280';
+      document.getElementById('checkSpecial').style.color = /[^A-Za-z0-9]/.test(pw) ? 'green' : '#6b7280';
+    }
+
+    document.getElementById('password').addEventListener('input', updatePasswordUI);
+
+    async function attemptVerifyFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const t = params.get('verify');
+      if (t) {
+        message.className = 'muted';
+        message.textContent = 'Verifying...';
+        try {
+          const res = await fetch(`/api/students/verify/${encodeURIComponent(t)}`);
+          const data = await res.json();
+          if (res.ok) {
+            message.className = 'success';
+            message.textContent = 'Email verified. You can now login.';
+            setMode('login');
+            history.replaceState(null, '', window.location.pathname);
+          } else {
+            message.className = 'error';
+            message.textContent = data?.message || 'Verification failed';
+          }
+        } catch (err) {
+          message.className = 'error';
+          message.textContent = 'Verification failed: ' + err.message;
+        }
+      }
+    }
+
+    attemptVerifyFromUrl();
+
+    document.getElementById('googleSSO').addEventListener('click', () => { window.location.href = '/api/auth/oauth/google'; });
+    document.getElementById('msSSO').addEventListener('click', () => { alert('Microsoft SSO button is a scaffold. Configure MS OAuth in backend to enable.'); });
+
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      message.setAttribute('aria-live','polite');
+      message.className = 'muted';
+      message.textContent = 'Processing...';
+
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const name = document.getElementById('name').value.trim();
+
+      // Clear helper area
+      const helper = document.getElementById('actionHelpers');
+      helper.innerHTML = '';
+
+      try {
+        let url = '';
+        let body = {};
+        if (role === 'student') {
+          if (mode === 'login') { url = '/api/students/login'; body = { email, password }; }
+          else {
+            // registration: enforce strength
+            const score = passwordScore(password);
+            if (score < 3) { message.className = 'error'; message.textContent = 'Password is too weak. Please follow the checklist.'; return; }
+            url = '/api/students/register'; body = { name, email, password };
+          }
+        } else {
+          if (mode === 'login') { url = '/api/auth/login'; body = { username: email, password }; }
+          else { url = '/api/auth/register'; body = { username: email.split('@')[0], email, password }; }
+        }
+
+        const res = await fetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        let data;
+        try { data = await res.json(); } catch (e) { data = { message: res.statusText || 'Request failed' }; }
+
+        if (!res.ok) {
+          message.className = 'error';
+          message.textContent = data?.message || 'Request failed';
+
+          // If login rejected due to unverified email, show resend option (students only)
+          if (res.status === 403 && data?.verified === false && role === 'student') {
+            const btn = document.createElement('button');
+            btn.textContent = 'Resend verification';
+            btn.style.marginTop = '8px';
+            btn.onclick = async () => { btn.disabled = true; btn.textContent = 'Resending...'; await fetch('/api/students/send-verification', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) }); btn.textContent = 'Sent'; setTimeout(()=>btn.remove(),3000); };
+            helper.appendChild(btn);
+          }
+          return;
+        }
+
+        message.className = 'success';
+        if (mode === 'register') {
+          message.textContent = 'Registered — verification email sent. Check your inbox (or server logs).';
+          // show resend button
+          const resendBtn = document.createElement('button');
+          resendBtn.textContent = 'Resend verification';
+          resendBtn.style.marginTop = '8px';
+          resendBtn.onclick = async () => {
+            resendBtn.disabled = true; resendBtn.textContent = 'Resending...';
+            await fetch('/api/students/send-verification', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) });
+            resendBtn.textContent = 'Verification sent';
+            setTimeout(()=>resendBtn.remove(), 3000);
+          };
+          helper.appendChild(resendBtn);
+          setMode('login');
+          return;
+        }
+
+        // login success
+        const token = data.token;
+        if (role === 'admin') {
+          localStorage.setItem('adminToken', token);
+          // keep legacy key for admin panels
+          localStorage.setItem('jwtToken', token);
+          location.href = '/admin';
+        } else {
+          localStorage.setItem('studentToken', token);
+          localStorage.setItem('studentEmail', email);
+          location.href = '/student-dashboard.html';
+        }
+
+      } catch (err) {
+        message.className = 'error';
+        message.textContent = 'Error: ' + err.message;
+      }
+    });
+
+    // Forgot password: show/hide via visible link
+    document.getElementById('forgotToggleLink')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      const f = document.getElementById('forgotSection');
+      f.style.display = f.style.display === 'none' ? 'block' : 'none';
+      document.getElementById('forgotResult').textContent = '';
+      // ensure reset form is hidden
+      document.getElementById('resetSection').style.display = 'none';
+    });
+
+    document.getElementById('forgotSend')?.addEventListener('click', async () => {
+      const mail = document.getElementById('forgotEmail').value.trim();
+      if (!mail) return document.getElementById('forgotResult').textContent = 'Please enter your email.';
+      document.getElementById('forgotResult').textContent = 'Sending...';
+      try {
+        const endpoint = role === 'admin' ? '/api/auth/forgot-password' : '/api/students/forgot-password';
+        const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email: mail }) });
+        let data;
+        try { data = await res.json(); } catch (e) { data = { message: res.statusText || 'If that email exists, a reset link has been sent.' }; }
+        document.getElementById('forgotResult').textContent = data?.message || 'If that email exists, a reset link has been sent.';
+      } catch (err) {
+        document.getElementById('forgotResult').textContent = 'Network error.';
+      }
+    });
+
+    // If URL contains reset token, show reset form
+    (function applyResetFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('reset');
+      const r = params.get('role');
+      if (token) {
+        setMode('login'); // keep close to login
+        if (r === 'admin') setRole('admin'); else setRole('student');
+        document.getElementById('resetSection').style.display = 'block';
+        document.getElementById('forgotSection').style.display = 'none';
+        document.getElementById('resetResult').textContent = '';
+
+        document.getElementById('resetSubmit').addEventListener('click', async () => {
+          const np = document.getElementById('resetNew').value;
+          const cp = document.getElementById('resetConfirm').value;
+          if (!np || np.length < 6) return document.getElementById('resetResult').textContent = 'Password must be at least 6 characters.';
+          if (np !== cp) return document.getElementById('resetResult').textContent = 'Passwords do not match.';
+          try {
+            const endpoint = role === 'admin' ? '/api/auth/reset-password' : '/api/students/reset-password';
+            const res = await fetch(endpoint, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ token: token, newPassword: np }) });
+            const data = await res.json().catch(() => null);
+            if (res.ok) {
+              document.getElementById('resetResult').textContent = 'Password reset. You can now login.';
+              setTimeout(() => { setMode('login'); setRole(role); document.getElementById('resetSection').style.display = 'none'; history.replaceState(null,'',window.location.pathname); }, 2000);
+            } else {
+              document.getElementById('resetResult').textContent = data?.message || 'Reset failed.';
+            }
+          } catch (err) {
+            document.getElementById('resetResult').textContent = 'Network error.';
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

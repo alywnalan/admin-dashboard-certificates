@@ -35,7 +35,7 @@ document.getElementById('forgotPasswordForm').addEventListener('submit', async f
       // For local testing: if resetToken provided by backend, auto-redirect to reset page
       if (data.resetToken) {
         setTimeout(() => {
-          window.location.href = `admin-reset-password.html?token=${encodeURIComponent(data.resetToken)}`;
+          window.location.href = `/reset-password?token=${encodeURIComponent(data.resetToken)}`;
         }, 800);
       }
     } else {

@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-import { isRevoked, updateActivity } from '../sessions.js';
 
 export default function (req, res, next) {
   const authHeader = req.headers.authorization;
@@ -9,12 +8,10 @@ export default function (req, res, next) {
   const token = authHeader.split(' ')[1];
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const tokenId = decoded.jti;
-    if (isRevoked(tokenId)) {
-      return res.status(401).json({ message: 'Session revoked. Please login again.' });
+    if (decoded.role !== 'student' && decoded.type !== 'student_auth') {
+      return res.status(401).json({ message: 'Invalid token for student access.' });
     }
-    updateActivity(tokenId);
-    req.admin = decoded;
+    req.student = decoded;
     next();
   } catch (err) {
     return res.status(401).json({ message: 'Invalid or expired token.' });

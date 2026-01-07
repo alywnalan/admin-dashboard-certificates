@@ -87,7 +87,6 @@ export const getInstituteById = async (req, res) => {
       return res.status(404).json({ message: 'Institute not found' });
     }
 
-    // Get certificate statistics for this institute
     const certificateStats = await Certificate.aggregate([
       { $match: { institute: inst.name } },
       {

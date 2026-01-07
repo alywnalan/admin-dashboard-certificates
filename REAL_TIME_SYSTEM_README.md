@@ -140,7 +140,7 @@ if (data.valid) {
 ## 📋 Usage Guide
 
 ### Admin Login
-1. Navigate to `admin-login.html`
+1. Navigate to `auth.html`
 2. Enter admin credentials
 3. **No face detection required**
 4. Access the dashboard

@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Student Login</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <h2>Student Login</h2>
+    <p>Use the unified <a href="/auth.html">Auth page</a> for a nicer experience.</p>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="email" required>
+      <label>Password</label>
+      <input type="password" id="password" required>
+      <button type="submit">Login</button>
+    </form>
+    <p>If you were looking for login/register, you are being redirected to the unified page.</p>
+  </div>
+  <script>
+    // Redirect to unified auth page
+    window.location.replace('/auth.html');
+  </script>
+</body>
+</html>

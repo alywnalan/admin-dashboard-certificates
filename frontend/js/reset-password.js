@@ -58,7 +58,7 @@ document.getElementById('resetPasswordForm').addEventListener('submit', async fu
       
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        window.location.href = 'admin-login.html';
+        window.location.href = '/auth.html';
       }, 2000);
     } else {
       showMessage(data.message || 'Failed to reset password. Please try again.', 'error');

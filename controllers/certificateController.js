@@ -1,12 +1,14 @@
 import Certificate from '../models/Certificate.js';
 import Institute from '../models/Institute.js';
 import Template from '../models/Template.js';
+import Student from '../models/Student.js';
 import { getIO } from '../realtime.js';
 import { anchorHashOnChain, computeContentHashHex } from '../blockchain.js';
 import XLSX from 'xlsx';
 import Handlebars from 'handlebars';
 import path from 'path';
 import fs from 'fs';
+import QRCode from 'qrcode';
 
 // Create a new certificate with enhanced validation
 export const createCertificate = async (req, res) => {
@@ -56,12 +58,50 @@ export const createCertificate = async (req, res) => {
       createdAt: new Date()
     });
     
+    // Optional: allow admin to attach subjects and student email
+    if (req.body.subjects && Array.isArray(req.body.subjects)) {
+      cert.subjects = req.body.subjects;
+    }
+
+    if (req.body.metadata && req.body.metadata.studentEmail) {
+      cert.metadata = cert.metadata || {};
+      cert.metadata.studentEmail = req.body.metadata.studentEmail;
+    } else if (req.body.studentEmail) {
+      cert.metadata = cert.metadata || {};
+      cert.metadata.studentEmail = req.body.studentEmail;
+    }
+
+    // Try to link to a Student document if email matches
+    try {
+      const studentEmail = cert.metadata && cert.metadata.studentEmail;
+      if (studentEmail) {
+        const studentDoc = await Student.findOne({ email: studentEmail });
+        if (studentDoc) {
+          cert.studentId = studentDoc._id;
+          // Ensure student name is normalized from Student doc
+          cert.student = studentDoc.name || cert.student;
+        }
+      }
+    } catch (err) {
+      console.warn('Student link check failed:', err.message);
+    }
+
+    // Generate verification URL and QR code (data URL)
+    try {
+      const verificationUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/certificates/validate/${uuid}`;
+      const qrImageDataUrl = await QRCode.toDataURL(verificationUrl);
+      cert.qrCode = { data: verificationUrl, image: qrImageDataUrl };
+    } catch (err) {
+      console.warn('QR generation failed:', err.message);
+    }
+
     console.log('📝 Certificate object created:', {
       uuid: cert.uuid,
       student: cert.student,
       course: cert.course,
       institute: cert.institute,
-      generatedByAdmin: cert.generatedByAdmin
+      generatedByAdmin: cert.generatedByAdmin,
+      hasQR: Boolean(cert.qrCode && cert.qrCode.image)
     });
     
     // Real-time blockchain anchoring with progress updates

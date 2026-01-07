@@ -12,6 +12,18 @@ const certificateSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  // Reference to Student document (if available)
+  studentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Student',
+    index: true
+  },
+  // Allow multiple subjects to be attached to a certificate
+  subjects: [{
+    name: { type: String },
+    score: { type: String },
+    maxScore: { type: String }
+  }],
   course: { 
     type: String, 
     required: true,

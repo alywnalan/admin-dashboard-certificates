@@ -158,6 +158,22 @@ router.post('/logout', (req, res) => {
   }
 });
 
+// OAuth / SSO scaffolding
+router.get('/oauth/google', async (req, res) => {
+  if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+    return res.status(501).json({ message: 'Google OAuth not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.' });
+  }
+  const redirectUri = encodeURIComponent(`${process.env.APP_URL || 'http://localhost:5000'}/api/auth/oauth/google/callback`);
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${process.env.GOOGLE_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=openid%20email%20profile&access_type=offline`;
+  res.redirect(url);
+});
+
+router.get('/oauth/google/callback', async (req, res) => {
+  // Implement provider callback handling here (exchange code, create/find user, issue token)
+  // For now, we'll return a helpful message for deployers
+  res.send('Google OAuth callback endpoint - implement exchange/creation in backend (see README)');
+});
+
 // List active sessions for current admin
 router.get('/sessions', auth, (req, res) => {
   try {

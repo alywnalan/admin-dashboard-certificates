@@ -1,0 +1,164 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Student Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h2>My Dashboard</h2>
+      <div>
+        <button id="logout">Logout</button>
+      </div>
+    </div>
+
+    <section id="profileSection">
+      <h3>Profile</h3>
+      <div id="profileInfo">Loading profile...</div>
+    </section>
+
+    <section id="coursesSection" style="margin-top:18px;">
+      <h3>My Courses</h3>
+      <form id="enrollForm" style="margin-bottom:12px;">
+        <input id="courseName" placeholder="Course name (e.g., Python 101)" required style="width:60%;">
+        <input id="courseInstitute" placeholder="Institute (optional)" style="width:30%;">
+        <button type="submit">Enroll</button>
+      </form>
+      <div id="coursesList">Loading courses...</div>
+    </section>
+
+    <section id="certsSection" style="margin-top:18px;">
+      <h3>My Certificates</h3>
+      <div id="certList"></div>
+    </section>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    async function fetchProfile() {
+      const token = localStorage.getItem('studentToken');
+      if (!token) return location.href = '/auth.html';
+      try {
+        const res = await fetch('/api/students/me', { headers: { 'Authorization': 'Bearer ' + token }});
+        if (res.status === 401) return location.href = '/auth.html';
+        const data = await res.json();
+        document.getElementById('profileInfo').innerHTML = `
+          <p><strong>Name:</strong> ${data.student.name}</p>
+          <p><strong>Email:</strong> ${data.student.email}</p>
+          <p><strong>Joined:</strong> ${new Date(data.student.createdAt).toLocaleDateString()}</p>
+        `;
+      } catch (err) { console.error(err); document.getElementById('profileInfo').textContent = 'Failed to load profile'; }
+    }
+
+    async function fetchCourses() {
+      const token = localStorage.getItem('studentToken');
+      if (!token) return location.href = '/auth.html';
+      try {
+        const res = await fetch('/api/students/my-courses', { headers: { 'Authorization': 'Bearer ' + token }});
+        if (res.status === 401) return location.href = '/auth.html';
+        const data = await res.json();
+        const list = document.getElementById('coursesList');
+        if (!data.courses || data.courses.length === 0) { list.innerHTML = '<p>No courses yet. Enroll below.</p>'; return; }
+        list.innerHTML = data.courses.map(c => `
+          <div style="border:1px solid #eef2ff;padding:10px;border-radius:8px;margin-bottom:8px;">
+            <strong>${c.courseName}</strong> — <em>${c.institute||'—'}</em>
+            <p>Status: <strong>${c.status}</strong> | Progress: ${c.progress}%</p>
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button onclick="updateCourse('${c._id}', { status: 'ongoing' })">Start</button>
+              <button onclick="updateCourse('${c._id}', { status: 'completed', progress: 100, completionDate: new Date().toISOString() })">Mark Completed</button>
+              <button onclick="updateCourse('${c._id}', { status: 'pending' })">Set Pending</button>
+            </div>
+          </div>
+        `).join('');
+      } catch (err) { console.error(err); document.getElementById('coursesList').textContent = 'Failed to load courses'; }
+    }
+
+    async function fetchCerts() {
+      const token = localStorage.getItem('studentToken');
+      if (!token) return location.href = '/auth.html';
+      try {
+        const res = await fetch('/api/students/me/certificates', { headers: { 'Authorization': 'Bearer ' + token }});
+        if (res.status === 401) return location.href = '/auth.html';
+        const data = await res.json();
+        const list = document.getElementById('certList');
+        if (!data.certificates || data.certificates.length === 0) { list.innerHTML = '<p>No certificates yet.</p>'; return; }
+        list.innerHTML = data.certificates.map(c => `
+          <div class="cert" style="border:1px solid #eef2ff;padding:10px;border-radius:8px;margin-bottom:8px;">
+            <h4>${c.course} — ${c.institute}</h4>
+            <p>UUID: ${c.uuid}</p>
+            <p>Date: ${new Date(c.date).toLocaleDateString()}</p>
+            <p>Blockchain: ${c.blockchain?.txId || 'Not anchored'}</p>
+            ${c.qrCode?.image ? `<img src="${c.qrCode.image}" style="max-width:120px;display:block;margin-top:8px;" />` : ''}
+            <p><a href="/api/certificates/validate/${c.uuid}" target="_blank">Validate</a></p>
+          </div>
+        `).join('');
+      } catch (err) { console.error(err); document.getElementById('certList').textContent = 'Failed to load certificates'; }
+    }
+
+    document.getElementById('enrollForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const token = localStorage.getItem('studentToken');
+      const courseName = document.getElementById('courseName').value.trim();
+      const institute = document.getElementById('courseInstitute').value.trim();
+      if (!courseName) return alert('Course name required');
+      try {
+        const res = await fetch('/api/students/enroll', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ courseName, institute }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Enroll failed');
+        document.getElementById('courseName').value = '';
+        document.getElementById('courseInstitute').value = '';
+        fetchCourses();
+        // Notify success
+        alert('Enrolled successfully');
+      } catch (err) { alert('Enrollment failed: ' + err.message); }
+    });
+
+    async function updateCourse(id, payload) {
+      const token = localStorage.getItem('studentToken');
+      try {
+        const res = await fetch('/api/students/my-courses/' + id, { method: 'PATCH', headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || 'Update failed');
+        fetchCourses();
+        if (window.io) {
+          const socket = window.io(window.location.hostname + ':5000');
+          // Optionally inform server side via action (server already emits)
+        }
+      } catch (err) { alert('Update failed: ' + err.message); }
+    }
+
+    document.getElementById('logout').addEventListener('click', () => { localStorage.removeItem('studentToken'); location.href = '/auth.html'; });
+
+    // Socket updates: refresh certificates and courses on relevant events
+    (function initSocket(){
+      if (!window.io) return;
+      const socket = window.io(window.location.hostname + ':5000');
+      socket.on('connect', () => {});
+      socket.on('certificate:created', (payload) => {
+        // If new certificate is for this student email, refresh
+        fetchCerts();
+      });
+      socket.on('student:courseUpdated', (payload) => {
+        if (payload.studentEmail === localStorage.getItem('studentEmail') || payload.studentEmail === (document.querySelector('#profileInfo strong + p')?.textContent?.split(': ')[1])) {
+          fetchCourses();
+        } else {
+          // Best effort: always refresh to keep UI in sync
+          fetchCourses();
+        }
+      });
+      socket.on('student:enrolled', (payload) => {
+        // Refresh course list to show new enrollment
+        fetchCourses();
+      });
+    })();
+
+    // Load everything
+    fetchProfile();
+    fetchCourses();
+    fetchCerts();
+  </script>
+</body>
+</html>

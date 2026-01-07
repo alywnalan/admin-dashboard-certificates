@@ -70,6 +70,17 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
+SMTP_FROM="Your App <no-reply@example.com>"
+
+Notes: If `SMTP_HOST` is set, the server will attempt to send verification and reset emails using `nodemailer` (install it in production). If SMTP is not configured, verification links will be printed to the server console for testing.
+
+# SSO / OAuth (Optional)
+To enable Google OAuth set the following in your environment:
+
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+The app includes scaffolded endpoints for `/api/auth/oauth/google` and `/api/auth/oauth/google/callback`. Implement the provider code exchange and user creation in `backend/routes/auth.js` if you wish to enable SSO.
 ```
 
 ### **Step 6: Production Deployment Options**

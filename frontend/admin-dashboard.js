@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => showSection('dashboardSectio
 function logout() {
   localStorage.removeItem('jwtToken');
   localStorage.removeItem('adminLoggedIn');
-  window.location.href = 'admin-login.html';
+  window.location.href = '/auth.html';
 }
 window.logout = logout;
 
@@ -358,7 +358,7 @@ function updateRecentActivityTable(analytics) {
   tbody.innerHTML = '';
   
   // For demo purposes, create sample recent activity
-  const recentActivity = [
+  const recentActivity = analytics.recentActivity || [
     { date: '2024-01-15', student: 'John Doe', course: 'Web Development', institute: 'Tech Academy', status: 'Issued' },
     { date: '2024-01-14', student: 'Jane Smith', course: 'Data Science', institute: 'Data Institute', status: 'Issued' },
     { date: '2024-01-13', student: 'Mike Johnson', course: 'AI & ML', institute: 'AI University', status: 'Pending' }
@@ -379,6 +379,40 @@ function updateRecentActivityTable(analytics) {
     `;
     tbody.appendChild(row);
   });
+}
+
+// Recent enrollments helper
+function appendRecentEnrollment(payload) {
+  const container = document.getElementById('recentEnrollments');
+  if (!container) return;
+  const entry = document.createElement('div');
+  entry.style.padding = '8px';
+  entry.style.borderBottom = '1px solid #f1f5f9';
+  entry.innerHTML = `
+    <strong>${payload.studentName || payload.studentEmail}</strong>
+    <div style="font-size:13px;color:#475569">${payload.course?.name || payload.course?.name || payload.course?.id || ''} &middot; ${new Date(payload.timestamp || Date.now()).toLocaleString()}</div>
+  `;
+  if (container.innerText === 'No recent enrollments.') container.innerHTML = '';
+  container.prepend(entry);
+}
+
+async function refreshEnrollmentList() {
+  try {
+    // Admin endpoint to fetch recent enrollments
+    const res = await authFetch(`${API_BASE}/courses?limit=6`);
+    const data = await res.json();
+    const container = document.getElementById('recentEnrollments');
+    if (!container) return;
+    if (!data.courses || data.courses.length === 0) { container.innerHTML = 'No recent enrollments.'; return; }
+    container.innerHTML = data.courses.slice(0,6).map(c => `
+      <div style="padding:8px;border-bottom:1px solid #f1f5f9;">
+        <strong>${c.courseName}</strong>
+        <div style="font-size:13px;color:#475569">${c.studentEmail || c.studentEmail || ''} &middot; ${c.status || 'pending'}</div>
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Failed to refresh enrollment list:', err);
+  }
 }
 
 function updateTopInstitutesTable(performance) {

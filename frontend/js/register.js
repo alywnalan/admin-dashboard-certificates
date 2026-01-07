@@ -18,7 +18,7 @@ document.getElementById('registerForm').addEventListener('submit', async functio
       return;
     }
     alert('Registered successfully!');
-    window.location.href = 'admin-login.html';
+    window.location.href = '/auth.html';
   } catch (err) {
     alert('Network error');
   }
