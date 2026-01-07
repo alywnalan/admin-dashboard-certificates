@@ -577,7 +577,7 @@
 
       try {
         showLoading('validationResults');
-        const response = await fetch((window.API_BASE || '') + '/api/certificates/bulk-validate', {
+        const response = await apiFetch('/api/certificates/bulk-validate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -764,7 +764,7 @@
       };
 
       try {
-        const response = await fetch((window.API_BASE || '') + '/api/certificates/export', {
+        const response = await apiFetch('/api/certificates/export', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -797,7 +797,7 @@
     // Analytics
     async function loadAnalytics() {
       try {
-        const response = await fetch((window.API_BASE || '') + '/api/certificates/stats');
+        const response = await apiFetch('/api/certificates/stats');
         const data = await response.json();
         displayAnalytics(data);
       } catch (error) {

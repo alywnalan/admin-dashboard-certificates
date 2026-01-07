@@ -15,6 +15,24 @@
       link.href = (window.API_BASE || '') + '/css/style.css';
       document.head.appendChild(link);
     })();
+
+    // apiFetch helper: tries configured API_BASE first, falls back to localhost:5000
+    async function apiFetch(path, opts={}) {
+      const base = window.API_BASE || '';
+      try {
+        const res = await fetch(base + path, opts);
+        if (res.status === 405 && base === '') {
+          // backend probably on 5000; try explicit host
+          return await fetch('http://127.0.0.1:5000' + path, opts);
+        }
+        return res;
+      } catch (err) {
+        if (base === '') {
+          try { return await fetch('http://127.0.0.1:5000' + path, opts); } catch(e) { throw err; }
+        }
+        throw err;
+      }
+    }
   </script>
   <style>
     /* Polished auth styling */
@@ -181,7 +199,7 @@
           else { url = '/api/auth/register'; body = { username: email.split('@')[0], email, password }; }
         }
 
-        const res = await fetch((window.API_BASE || '') + url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await apiFetch(url, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
         let data;
         try { data = await res.json(); } catch (e) { data = { message: res.statusText || 'Request failed' }; }
 
@@ -194,7 +212,7 @@
             const btn = document.createElement('button');
             btn.textContent = 'Resend verification';
             btn.style.marginTop = '8px';
-            btn.onclick = async () => { btn.disabled = true; btn.textContent = 'Resending...'; await fetch((window.API_BASE || '') + '/api/students/send-verification', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) }); btn.textContent = 'Sent'; setTimeout(()=>btn.remove(),3000); };
+            btn.onclick = async () => { btn.disabled = true; btn.textContent = 'Resending...'; await apiFetch('/api/students/send-verification', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email }) }); btn.textContent = 'Sent'; setTimeout(()=>btn.remove(),3000); };
             helper.appendChild(btn);
           }
           return;
