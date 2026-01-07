@@ -9,9 +9,14 @@ function showSection(sectionId) {
 document.addEventListener('DOMContentLoaded', () => showSection('dashboardSection'));
 
 // Logout function
-function logout() {
+async function logout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (e) { /* ignore */ }
   localStorage.removeItem('jwtToken');
   localStorage.removeItem('adminLoggedIn');
+  // clear other admin-related localStorage keys
+  localStorage.removeItem('adminToken');
   window.location.href = '/auth.html';
 }
 window.logout = logout;

@@ -18,6 +18,15 @@
   <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.2.0/crypto-js.min.js"></script>
 </head>
 <body>
+  <script>
+    // Guard: ensure admin session exists server- or cookie-side by calling /api/auth/me
+    (async function(){
+      try {
+        const res = await fetch('/api/auth/me', { method: 'GET', credentials: 'same-origin' });
+        if (!res.ok) { window.location.href = '/auth.html?role=admin&mode=login'; }
+      } catch (e) { window.location.href = '/auth.html?role=admin&mode=login'; }
+    })();
+  </script>
   <div class="dashboard-container">
     <div class="sidebar">
       <div class="sidebar-header">

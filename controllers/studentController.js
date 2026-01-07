@@ -19,40 +19,13 @@ export const registerStudent = async (req, res) => {
     const student = new Student({ name, email, password: hash, phone, institute });
     await student.save();
 
-    // Generate email verification token
+    // Auto-verify accounts: email verification not required
     try {
-      const token = jwt.sign({ id: student._id, type: 'email_verify' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-      const verificationUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/students/verify/${token}`;
+      student.isVerified = true;
       student.verificationSentAt = new Date();
       await student.save();
-
-      // If SMTP is configured, attempt to send an email; otherwise, log link to console
-      if (process.env.SMTP_HOST) {
-        try {
-          const nodemailer = await import('nodemailer');
-          const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST,
-            port: parseInt(process.env.SMTP_PORT || '587'),
-            secure: (process.env.SMTP_SECURE === 'true'),
-            auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
-          });
-          await transporter.sendMail({
-            from: process.env.SMTP_FROM || process.env.SMTP_USER,
-            to: student.email,
-            subject: 'Verify your email',
-            text: `Please verify your account by visiting: ${verificationUrl}`,
-            html: `<p>Please verify your account by clicking <a href="${verificationUrl}">this link</a>.</p>`
-          });
-          console.log('Verification email sent to', student.email);
-        } catch (mailErr) {
-          console.error('Failed to send verification email:', mailErr);
-          console.log('Verification link (fallback):', verificationUrl);
-        }
-      } else {
-        console.log('Verification link:', verificationUrl);
-      }
     } catch (err) {
-      console.error('Verification token generation error:', err);
+      console.error('Auto-verify error:', err);
     }
     
     return res.status(201).json({ 
@@ -77,9 +50,7 @@ export const loginStudent = async (req, res) => {
     const isMatch = await bcrypt.compare(password, student.password);
     if (!isMatch) return res.status(401).json({ message: 'Invalid credentials.' });
 
-    if (!student.isVerified) {
-      return res.status(403).json({ message: 'Email not verified. Please check your email for a verification link.', verified: false });
-    }
+
 
     const token = jwt.sign({ id: student._id, email: student.email, name: student.name, role: 'student', type: 'student_auth' }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
@@ -92,68 +63,13 @@ export const loginStudent = async (req, res) => {
 
 // Send verification email (resend)
 export const sendVerification = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'Email required' });
-    const student = await Student.findOne({ email });
-    if (!student) return res.status(404).json({ message: 'Student not found' });
-
-    const token = jwt.sign({ id: student._id, type: 'email_verify' }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    const verificationUrl = `${process.env.APP_URL || 'http://localhost:5000'}/api/students/verify/${token}`;
-    student.verificationSentAt = new Date();
-    await student.save();
-
-    if (process.env.SMTP_HOST) {
-      try {
-        const nodemailer = await import('nodemailer');
-        const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: (process.env.SMTP_SECURE === 'true'),
-          auth: process.env.SMTP_USER ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } : undefined
-        });
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || process.env.SMTP_USER,
-          to: student.email,
-          subject: 'Verify your email',
-          text: `Please verify your account by visiting: ${verificationUrl}`,
-          html: `<p>Please verify your account by clicking <a href="${verificationUrl}">this link</a>.</p>`
-        });
-      } catch (mailErr) {
-        console.error('Failed to send verification email:', mailErr);
-        console.log('Verification link (fallback):', verificationUrl);
-      }
-    } else {
-      console.log('Verification link:', verificationUrl);
-    }
-
-    return res.json({ message: 'Verification sent' });
-  } catch (err) {
-    console.error('Send verification error:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
+  // Email verification is disabled — nothing to do
+  return res.status(400).json({ message: 'Email verification is not required in this deployment.' });
 };
 
 export const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params;
-    if (!token) return res.status(400).json({ message: 'Token is required' });
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(400).json({ message: 'Invalid or expired token' });
-    }
-    if (decoded.type !== 'email_verify') return res.status(400).json({ message: 'Invalid token' });
-    const student = await Student.findById(decoded.id);
-    if (!student) return res.status(404).json({ message: 'Student not found' });
-    student.isVerified = true;
-    await student.save();
-    return res.json({ message: 'Email verified successfully' });
-  } catch (err) {
-    console.error('Verify email error:', err);
-    res.status(500).json({ message: 'Server error' });
-  }
+  // Verification endpoint is disabled; accounts are auto-verified on registration
+  return res.status(400).json({ message: 'Email verification is not required in this deployment.' });
 };
 
 // Student: forgot password (request reset link)

@@ -192,7 +192,12 @@
           if (mode === 'login') { url = '/api/students/login'; body = { email, password }; }
           else {
             // simple registration
-            url = '/api/students/register'; body = { name, email, password };
+            if (role === 'admin') {
+              const username = name || email.split('@')[0];
+              url = '/api/auth/register'; body = { username, email, password };
+            } else {
+              url = '/api/students/register'; body = { name, email, password };
+            }
           }
         } else {
           if (mode === 'login') { url = '/api/auth/login'; body = { username: email, password }; }
@@ -220,8 +225,45 @@
 
         message.className = 'success';
         if (mode === 'register') {
-          // Verification is disabled in this deployment — accounts are active immediately
-          message.textContent = 'Registered successfully. You can now log in.';
+          message.className = 'success';
+          message.textContent = 'Registered. Signing you in...';
+
+          // Construct login info and try to auto-login for convenience
+          try {
+            if (role === 'admin') {
+              // If register endpoint returned a token we can use it directly
+              if (data?.token) {
+                localStorage.setItem('adminToken', data.token);
+                localStorage.setItem('jwtToken', data.token);
+                location.href = '/admin';
+                return;
+              }
+              const username = name || email.split('@')[0];
+              const loginRes = await apiFetch('/api/auth/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ username, password }) });
+              const loginData = await loginRes.json();
+              if (loginRes.ok && loginData.token) {
+                localStorage.setItem('adminToken', loginData.token);
+                localStorage.setItem('jwtToken', loginData.token);
+                location.href = '/admin';
+                return;
+              }
+            } else {
+              // student auto-login
+              const loginRes = await apiFetch('/api/students/login', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ email, password }) });
+              const loginData = await loginRes.json();
+              if (loginRes.ok && loginData.token) {
+                localStorage.setItem('studentToken', loginData.token);
+                localStorage.setItem('studentEmail', email);
+                location.href = '/student-dashboard.html';
+                return;
+              }
+            }
+          } catch (e) {
+            console.error('Auto-login failed:', e);
+          }
+
+          // Fallback: switch to login so user can sign in manually
+          message.textContent = 'Registered successfully. Please log in.';
           setMode('login');
           return;
         }

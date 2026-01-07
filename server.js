@@ -12,6 +12,7 @@ import courseRoutes from './routes/courses.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
+import jwt from 'jsonwebtoken';
 import { initIO } from './realtime.js';
 
 dotenv.config();
@@ -22,7 +23,33 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(cors());
+app.options('*', cors()); // respond to preflight requests
 app.use(express.json());
+
+// Simple request logging for debugging
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} ${res.statusCode} - ${Date.now() - start}ms`);
+  });
+  next();
+});
+
+// Debug route to list registered routes (temporary)
+app.get('/_debug/routes', (req, res) => {
+  try {
+    const result = [];
+    app._router.stack.forEach((m) => {
+      if (m.route && m.route.path) {
+        const methods = Object.keys(m.route.methods).map(s => s.toUpperCase()).join(',');
+        result.push({ path: m.route.path, methods });
+      }
+    });
+    res.json({ routes: result });
+  } catch (e) {
+    res.status(500).json({ error: 'failed to list routes' });
+  }
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -46,7 +73,42 @@ app.use(express.static(frontendDir));
 app.get('/', (req, res) => {
   res.sendFile(path.join(frontendDir, 'index.html'));
 });
-app.get('/admin', (req, res) => {
+
+// Helper: simple cookie parser to avoid adding a new dependency
+function getCookie(req, name) {
+  const c = req.headers.cookie || '';
+  const pairs = c.split(';').map(p => p.trim()).filter(Boolean);
+  for (const pair of pairs) {
+    const parts = pair.split('=');
+    if (parts[0] === name) return decodeURIComponent(parts.slice(1).join('='));
+  }
+  return null;
+}
+
+function adminGuard(req, res, next) {
+  // Try Authorization header first
+  const authHeader = req.headers.authorization || '';
+  let token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : null;
+  if (!token) token = getCookie(req, 'admin_token');
+  if (!token) {
+    return res.redirect('/auth.html?role=admin&mode=login');
+  }
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    // attach minimal admin info for downstream handlers if needed
+    req.admin = { id: decoded.id, username: decoded.username, email: decoded.email };
+    return next();
+  } catch (e) {
+    return res.redirect('/auth.html?role=admin&mode=login');
+  }
+}
+
+app.get('/admin', adminGuard, (req, res) => {
+  res.sendFile(path.join(frontendDir, 'admin-dashboard.html'));
+});
+
+// Ensure direct access to admin-dashboard.html is also guarded
+app.get('/admin-dashboard.html', adminGuard, (req, res) => {
   res.sendFile(path.join(frontendDir, 'admin-dashboard.html'));
 });
 

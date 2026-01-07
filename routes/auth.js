@@ -40,6 +40,9 @@ router.post('/login', async (req, res) => {
     // Optional: emit security login success event
     const io = getIO();
     if (io) io.emit('security:loginSuccess', { at: new Date().toISOString(), admin: admin.username });
+    // Set HttpOnly cookie for admin page server-side auth (expires in 2 hours)
+    const cookieFlags = `HttpOnly; Path=/; Max-Age=${60*60*2}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+    res.setHeader('Set-Cookie', `admin_token=${token}; ${cookieFlags}`);
     res.json({ token, admin: { username: admin.username, email: admin.email } });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
@@ -56,7 +59,26 @@ router.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const admin = new Admin({ username, password: hash, email });
     await admin.save();
-    res.status(201).json({ message: 'Admin registered.' });
+
+    // Auto-login after registration: create token and register session
+    const tokenId = Math.random().toString(36).slice(2);
+    const token = jwt.sign({ id: admin._id, username: admin.username, email: admin.email, jti: tokenId }, process.env.JWT_SECRET, { expiresIn: '2h' });
+    // Register session
+    addSession({ 
+      tokenId,
+      adminId: String(admin._id),
+      username: admin.username,
+      ip: req.ip,
+      userAgent: req.headers['user-agent'] || 'unknown'
+    });
+    const io = getIO();
+    if (io) io.emit('security:loginSuccess', { at: new Date().toISOString(), admin: admin.username });
+
+    // Set HttpOnly cookie for admin page server-side auth (expires in 2 hours)
+    const cookieFlags = `HttpOnly; Path=/; Max-Age=${60*60*2}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+    res.setHeader('Set-Cookie', `admin_token=${token}; ${cookieFlags}`);
+
+    res.status(201).json({ token, admin: { username: admin.username, email: admin.email } });
   } catch (err) {
     res.status(500).json({ message: 'Server error' });
   }
@@ -152,6 +174,8 @@ router.post('/logout', (req, res) => {
         if (decoded.jti) revokeByTokenId(decoded.jti);
       } catch {}
     }
+    // Clear admin_token cookie
+    res.setHeader('Set-Cookie', 'admin_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
     return res.json({ message: 'Logged out' });
   } catch {
     return res.json({ message: 'Logged out' });
@@ -174,13 +198,12 @@ router.get('/oauth/google/callback', async (req, res) => {
   res.send('Google OAuth callback endpoint - implement exchange/creation in backend (see README)');
 });
 
-// List active sessions for current admin
-router.get('/sessions', auth, (req, res) => {
+// Admin profile - validate token and return admin info
+router.get('/me', auth, (req, res) => {
   try {
-    const sessions = listSessionsForAdmin(String(req.admin.id));
-    res.json({ sessions });
+    res.json({ admin: { id: req.admin.id, username: req.admin.username, email: req.admin.email } });
   } catch (e) {
-    res.status(500).json({ message: 'Failed to fetch sessions' });
+    res.status(500).json({ message: 'Server error' });
   }
 });
 
